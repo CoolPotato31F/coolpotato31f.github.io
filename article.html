@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Article</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .article-container {
+      background: white;
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 800px;
+      width: 100%;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    }
+    .article-image {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .article-title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .article-date {
+      color: #777;
+      margin-bottom: 1.5rem;
+    }
+    .article-content {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #333;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="article-container">
+    <img id="article-image" class="article-image" src="" alt="Article Image" onerror="this.style.display='none'">
+    <div class="article-title" id="title"></div>
+    <div class="article-date" id="date"></div>
+    <div class="article-content" id="content"></div>
+  </div>
+
+  <script>
+    const article = JSON.parse(localStorage.getItem("selectedArticle"));
+    if (article) {
+      document.getElementById("title").textContent = article.title;
+      document.getElementById("date").textContent = article.date;
+      document.getElementById("content").textContent = article.content;
+      document.getElementById("article-image").src = article.imagePath;
+    } else {
+      document.getElementById("title").textContent = "Article not found.";
+    }
+  </script>
+</body>
+</html>
