@@ -75,60 +75,51 @@
   <div id="articles"></div>
 
   <script>
-    // Simulated article text file content
-    const textContent = `
-============================================================
-Generated on: 2025-06-22 14:55:09
-Title: The U.S. military is operating in the air, on land and at sea
-
-The U.S. military is operating in the air, on land and at sea to shoot down Iranian missiles fired at Israel... (truncated)
-============================================================
-
-============================================================
-Generated on: 2025-06-22 16:18:35
-Title: The award was given to former President Jimmy Carter in 1977, and has never been given
-
-President Donald Trump said Friday that he should've been awarded the Nobel Peace Prize... (truncated)
-============================================================`;
-
     const sanitizeFilename = title => title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
-    const articles = textContent.split("============================================================")
-      .map(block => block.trim())
-      .filter(block => block)
-      .map((block, index) => {
-        const titleMatch = block.match(/Title: (.+)/);
-        const dateMatch = block.match(/Generated on: (.+)/);
-        const contentMatch = block.match(/Title: .+\n+([^]*)/);
-        const title = titleMatch ? titleMatch[1] : "Untitled";
-        return {
-          id: index,
-          title: title,
-          date: dateMatch ? dateMatch[1] : "Unknown date",
-          content: contentMatch ? contentMatch[1].trim() : "",
-          imagePath: `Images/${sanitizeFilename(title)}.jpg`
-        };
-      });
+    fetch("articles.txt")
+      .then(response => response.text())
+      .then(textContent => {
+        const articles = textContent.split("============================================================")
+          .map(block => block.trim())
+          .filter(block => block)
+          .map((block, index) => {
+            const titleMatch = block.match(/Title: (.+)/);
+            const dateMatch = block.match(/Generated on: (.+)/);
+            const contentMatch = block.match(/Title: .+\n+([^]*)/);
+            const title = titleMatch ? titleMatch[1] : "Untitled";
+            return {
+              id: index,
+              title: title,
+              date: dateMatch ? dateMatch[1] : "Unknown date",
+              content: contentMatch ? contentMatch[1].trim() : "",
+              imagePath: `Images/${sanitizeFilename(title)}.jpg`
+            };
+          });
 
-    const container = document.getElementById("articles");
-    articles.forEach(article => {
-      const snippet = article.content.slice(0, 200) + '...';
-      const box = document.createElement("div");
-      box.className = "article-preview";
-      box.innerHTML = `
-        <img src="${article.imagePath}" alt="${article.title}" class="article-image" onerror="this.style.display='none'">
-        <div>
-          <div class="article-title">${article.title}</div>
-          <div class="article-date">${article.date}</div>
-        </div>
-        <div class="article-snippet">${snippet}</div>
-      `;
-      box.addEventListener("click", () => {
-        localStorage.setItem("selectedArticle", JSON.stringify(article));
-        window.location.href = "article.html";
+        const container = document.getElementById("articles");
+        articles.forEach(article => {
+          const snippet = article.content.slice(0, 200) + '...';
+          const box = document.createElement("div");
+          box.className = "article-preview";
+          box.innerHTML = `
+            <img src="${article.imagePath}" alt="${article.title}" class="article-image" onerror="this.style.display='none'">
+            <div>
+              <div class="article-title">${article.title}</div>
+              <div class="article-date">${article.date}</div>
+            </div>
+            <div class="article-snippet">${snippet}</div>
+          `;
+          box.addEventListener("click", () => {
+            localStorage.setItem("selectedArticle", JSON.stringify(article));
+            window.location.href = "article.html";
+          });
+          container.appendChild(box);
+        });
+      })
+      .catch(err => {
+        console.error("Failed to load article file:", err);
       });
-      container.appendChild(box);
-    });
   </script>
 </body>
 </html>
