@@ -11,30 +11,62 @@
       margin: 0;
       padding: 2rem;
     }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    #articles {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      justify-items: center;
+    }
     .article-preview {
+      width: 100%;
+      aspect-ratio: 1 / 1;
       background: white;
       border-radius: 1rem;
-      padding: 1rem 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 1rem;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       cursor: pointer;
       transition: transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
     }
     .article-preview:hover {
       transform: scale(1.02);
     }
     .article-title {
-      font-size: 1.25rem;
+      font-size: 1.1rem;
       font-weight: bold;
       color: #333;
+      margin-bottom: 0.5rem;
     }
     .article-date {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #666;
+      margin-bottom: 0.5rem;
     }
     .article-snippet {
-      margin-top: 0.5rem;
+      font-size: 0.9rem;
       color: #444;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .article-image {
+      width: 100%;
+      height: auto;
+      max-height: 120px;
+      object-fit: cover;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    @media (max-width: 900px) {
+      #articles {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      }
     }
   </style>
 </head>
@@ -59,6 +91,8 @@ Title: The award was given to former President Jimmy Carter in 1977, and has nev
 President Donald Trump said Friday that he should've been awarded the Nobel Peace Prize... (truncated)
 ============================================================`;
 
+    const sanitizeFilename = title => title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
     const articles = textContent.split("============================================================")
       .map(block => block.trim())
       .filter(block => block)
@@ -66,11 +100,13 @@ President Donald Trump said Friday that he should've been awarded the Nobel Peac
         const titleMatch = block.match(/Title: (.+)/);
         const dateMatch = block.match(/Generated on: (.+)/);
         const contentMatch = block.match(/Title: .+\n+([^]*)/);
+        const title = titleMatch ? titleMatch[1] : "Untitled";
         return {
           id: index,
-          title: titleMatch ? titleMatch[1] : "Untitled",
+          title: title,
           date: dateMatch ? dateMatch[1] : "Unknown date",
           content: contentMatch ? contentMatch[1].trim() : "",
+          imagePath: `Images/${sanitizeFilename(title)}.jpg`
         };
       });
 
@@ -80,8 +116,11 @@ President Donald Trump said Friday that he should've been awarded the Nobel Peac
       const box = document.createElement("div");
       box.className = "article-preview";
       box.innerHTML = `
-        <div class="article-title">${article.title}</div>
-        <div class="article-date">${article.date}</div>
+        <img src="${article.imagePath}" alt="${article.title}" class="article-image" onerror="this.style.display='none'">
+        <div>
+          <div class="article-title">${article.title}</div>
+          <div class="article-date">${article.date}</div>
+        </div>
         <div class="article-snippet">${snippet}</div>
       `;
       box.addEventListener("click", () => {
