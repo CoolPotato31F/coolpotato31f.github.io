@@ -226,7 +226,19 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
-        
+        .announcement-box {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 20;
+            font-weight: bold;
+            transition: top 0.5s ease;
+        }
     </style>
 </head>
 
@@ -257,6 +269,7 @@
         <div class="output-area" id="output"></div>
     </div>
 
+    <div class="announcement-box" id="announcementBox"></div>
     <script>
         const textarea = document.getElementById("editor");
         const highlightLayer = document.getElementById("highlight");
@@ -266,6 +279,9 @@
         const runBtn = document.getElementById("run");
         const outputArea = document.getElementById("output");
         const usernameInput = document.getElementById("username");
+        const announcementBox = document.getElementById("announcementBox");
+
+        const NGROK_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
 
         textarea.value = `# Sample Python code
 def greet(name):
@@ -463,7 +479,7 @@ greet("Alice")`;
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
         function run() {
             outputArea.textContent = 'Running...';
-            fetch('https://sepaled-miller-nonvigilantly.ngrok-free.app/run', {
+            fetch(`${NGROK_URL}/run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -477,6 +493,29 @@ greet("Alice")`;
         runBtn.addEventListener('click', run);
 
         updateHighlight();
+
+        let lastTimestamp = null;
+        let lastAnnouncment = "";
+        async function fetchAnnouncement() {
+            try {
+                const res = await fetch(`${NGROK_URL}/latest_announcement`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                if (data.timestamp !== lastTimestamp && data.message && lastAnnouncment != data.message) {
+                    lastTimestamp = data.timestamp;
+                    announcementBox.textContent = `${data.author}: ${data.message}`;
+                    announcementBox.style.top = '10px';
+                    lastAnnouncment = data.message
+                    setTimeout(() => announcementBox.style.top = '-60px', 5000);
+
+                }
+            } catch (err) {
+                console.error("Announcement fetch error:", err);
+            }
+        }
+
+        setInterval(fetchAnnouncement, 500);
     </script>
 </body>
 
