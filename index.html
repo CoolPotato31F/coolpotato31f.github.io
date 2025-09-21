@@ -52,7 +52,15 @@
             background: #22c55e;
         }
 
-        .toolbar input {
+        
+        .toolbar-center-absolute {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .toolbar-center-absolute input {
             padding: 5px 10px;
             border-radius: 4px;
             border: none;
@@ -214,7 +222,7 @@
         }
 
         .output-area {
-            color: white;
+            color: white; 
             white-space: pre-wrap;
             font-family: monospace;
         }
@@ -225,12 +233,15 @@
 <body>
     <div class="toolbar">
         <div class="toolbar-left">
-            <button id="undo">Undo</button>
-            <button id="redo">Redo</button>
+            <button class="button" id="undo">Undo</button>
+            <button class="button" id="redo">Redo</button>
         </div>
-        <div class="toolbar-center">
+
+        <!-- Centered absolutely -->
+        <div class="toolbar-center-absolute">
             <input type="text" id="username" placeholder="Username">
         </div>
+
         <div class="toolbar-right">
             <button class="run" id="run">Run</button>
         </div>
