@@ -1,124 +1,432 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Neutral Articles</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background-color: #f4f4f4;
-      margin: 0;
-      padding: 2rem;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    #articles {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-      justify-items: center;
-    }
-    .article-preview {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      background: white;
-      border-radius: 1rem;
-      padding: 1rem;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      cursor: pointer;
-      transition: transform 0.2s;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      box-sizing: border-box;
-    }
-    .article-preview:hover {
-      transform: scale(1.02);
-    }
-    .article-title {
-      font-size: 1.1rem;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 0.5rem;
-    }
-    .article-date {
-      font-size: 0.85rem;
-      color: #666;
-      margin-bottom: 0.5rem;
-    }
-    .article-snippet {
-      font-size: 0.9rem;
-      color: #444;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .article-image {
-      width: 100%;
-      height: auto;
-      object-fit: cover;
-      border-radius: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    @media (max-width: 900px) {
-      #articles {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      }
-    }
-  </style>
+    <meta charset="utf-8" />
+    <title>Python Editor with Gutter</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0f1724;
+            font-family: monospace;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 5px 10px;
+            height: 40px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            border-radius: 0;
+        }
+
+        .toolbar button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            background: #3b82f6;
+        }
+
+        .toolbar button.run {
+            background: #22c55e;
+        }
+
+        .editor-container {
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 40px);
+            margin-top: 40px;
+            gap: 20px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .editor-wrap,
+        .output-area {
+            background: #1e293b;
+            border-radius: 15px;
+            padding: 10px;
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            margin: 20px
+        }
+
+        .gutter {
+            width: 50px;
+            background: rgba(0, 0, 0, 0.1);
+            color: #94a3b8;
+            text-align: right;
+            padding: 15px 5px;
+            box-sizing: border-box;
+            user-select: none;
+            line-height: 20px;
+            overflow: hidden;
+            border-radius: 15px 0 0 15px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+
+        .highlight-layer,
+        .textarea-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            padding: 5px 10px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-radius: 15px;
+        }
+
+        .highlight-layer {
+            color: #e2e8f0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: visible;
+        }
+
+        .textarea-layer {
+            background: transparent;
+            color: transparent;
+            caret-color: white;
+            border: none;
+            outline: none;
+            z-index: 2;
+            resize: none;
+            overflow: auto;
+            padding: 5px 10px;
+        }
+
+        .textarea-layer::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .textarea-layer::-webkit-scrollbar-track {
+            background: #182130;
+            border-radius: 5px;
+        }
+
+        .textarea-layer::-webkit-scrollbar-thumb {
+            background: #121824;
+            border-radius: 5px;
+        }
+
+        .textarea-layer::-webkit-scrollbar-thumb:hover {
+            background: rgb(14, 20, 29);
+        }
+
+        .keyword {
+            color: #7dd3fc;
+            font-weight: bold;
+        }
+
+        .logic {
+            color: #f97316;
+            font-weight: bold;
+        }
+
+        .control {
+            color: #facc15;
+            font-weight: bold;
+        }
+
+        .function {
+            color: #a3e635;
+        }
+
+        .string {
+            color: #f472b6;
+        }
+
+        .number {
+            color: #fbbf24;
+        }
+
+        .boolean {
+            color: #22d3ee;
+            font-weight: bold;
+        }
+
+        .variable,
+        .symbol {
+            color: #e2e8f0;
+        }
+
+        .comment {
+            color: #cbd5e1;
+            font-style: bold;
+        }
+
+        .unknown {
+            color: #f87171;
+            background-color: rgba(255, 0, 0, 0.1);
+        }
+
+        .line-number {
+            height: 20px;
+        }
+
+        .editor-content {
+            position: relative;
+            margin-left: 50px;
+            height: 100%;
+        }
+
+        .output-area {
+            color: white;
+        }
+    </style>
 </head>
+
 <body>
-  <h1>Neutral News Articles</h1>
-  <div id="articles"></div>
-
-  <script>
-    const sanitizeFilename = title => title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-    fetch("articles.txt")
-      .then(response => response.text())
-      .then(textContent => {
-        const articles = textContent.split("============================================================")
-          .map(block => block.trim())
-          .filter(block => block)
-          .map((block, index) => {
-            const titleMatch = block.match(/Title: (.+)/);
-            const dateMatch = block.match(/Generated on: (.+)/);
-            const contentMatch = block.match(/Title: .+\n+([^]*)/);
-            const title = titleMatch ? titleMatch[1] : "Untitled";
-            return {
-              id: index,
-              title: title,
-              date: dateMatch ? dateMatch[1] : "Unknown date",
-              content: contentMatch ? contentMatch[1].trim() : "",
-              imagePath: `Images/${sanitizeFilename(title)}.jpg`
-            };
-          });
-
-        const container = document.getElementById("articles");
-        articles.forEach(article => {
-          const snippet = article.content.slice(0, 200) + '...';
-          const box = document.createElement("div");
-          box.className = "article-preview";
-          box.innerHTML = `
-            <img src="${article.imagePath}" alt="${article.title}" class="article-image" onerror="this.style.display='none'">
-            <div>
-              <div class="article-title">${article.title}</div>
-              <div class="article-date">${article.date}</div>
+    <div class="toolbar">
+        <div>
+            <button id="undo">Undo</button>
+            <button id="redo">Redo</button>
+        </div>
+        <button class="run" id="run">Run</button>
+    </div>
+    <div class="editor-container">
+        <div class="editor-wrap">
+            <div class="gutter" id="gutter"></div>
+            <div class="editor-content">
+                <pre id="highlight" class="highlight-layer"></pre>
+                <textarea id="editor" class="textarea-layer" spellcheck="false"></textarea>
             </div>
-            <div class="article-snippet">${snippet}</div>
-          `;
-          box.addEventListener("click", () => {
-            localStorage.setItem("selectedArticle", JSON.stringify(article));
-            window.location.href = "article.html";
-          });
-          container.appendChild(box);
+        </div>
+        <div class="output-area" id="output"></div>
+    </div>
+
+    <script>
+        const textarea = document.getElementById("editor");
+        const highlightLayer = document.getElementById("highlight");
+        const gutter = document.getElementById("gutter");
+        const undoBtn = document.getElementById("undo");
+        const redoBtn = document.getElementById("redo");
+        const runBtn = document.getElementById("run");
+        const outputArea = document.getElementById("output");
+
+        textarea.value = `# Sample Python code
+def greet(name):
+    if name:
+        print(f"Hello, {name}!")
+    else:
+        print("Hello, world!")
+greet("Alice")`;
+
+        function tokenizePython(code) {
+            const keywords = ["def", "if", "else", "elif", "for", "while", "return", "import", "from", "as", "class", "try", "except", "finally", "with", "lambda", "yield", "continue", "break", "in"];
+            const logicKeywords = ["if", "else", "elif", "for", "while", "try", "except", "finally", "with"];
+            const booleans = ["True", "False"];
+            const symbols = ["(", ")", ":", ",", ".", "+", "-", "*", "/", "=", "==", "<", ">", "<=", ">=", "!="];
+            const tokens = []; let i = 0;
+
+            const commentIndex = code.indexOf('#');
+            if (commentIndex !== -1) {
+                if (commentIndex > 0) {
+                    const beforeComment = code.slice(0, commentIndex);
+                    tokens.push(...tokenizePython(beforeComment));
+                }
+                tokens.push(["comment", code.slice(commentIndex)]);
+                return tokens;
+            }
+
+            while (i < code.length) {
+                let char = code[i];
+
+                // Whitespace
+                if (char === " " || char === "\t") {
+                    let start = i;
+                    while (i < code.length && (code[i] === " " || code[i] === "\t")) i++;
+                    tokens.push(["variable", code.slice(start, i)]);
+                    continue;
+                }
+
+                // String (including f-strings)
+                if (char === '"' || char === "\'" || ((char === "f" || char === "F") && (code[i + 1] === "'" || code[i + 1] === '"'))) {
+                    let start = i;
+
+                    // Skip the f/F prefix if present
+                    if ((char === "f" || char === "F") && (code[i + 1] === "'" || code[i + 1] === '"')) {
+                        i++;
+                        char = code[i];
+                    }
+
+                    let quote = char;
+                    i++;
+                    while (i < code.length) {
+                        if (code[i] === "\\") i += 2;
+                        else if (code[i] === quote) { i++; break; }
+                        else i++;
+                    }
+
+                    tokens.push(["string", code.slice(start, i)]);
+                    continue;
+                }
+
+                // Numbers
+                if (/[0-9]/.test(char)) {
+                    let start = i;
+                    while (i < code.length && /[0-9.]/.test(code[i])) i++;
+                    tokens.push(["number", code.slice(start, i)]);
+                    continue;
+                }
+
+                // Words (variables, keywords, functions)
+                if (/[a-zA-Z_]/.test(char)) {
+                    let start = i;
+                    while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
+                    let word = code.slice(start, i);
+
+                    let j = i;
+                    while (j < code.length && (code[j] === ' ' || code[j] == '\t')) j++;
+                    if (j < code.length && code[j] === '(') {
+                        tokens.push(["function", word]);
+                    } else if (keywords.includes(word)) {
+                        if (logicKeywords.includes(word)) tokens.push(["logic", word]);
+                        else if (["return", "continue", "break"].includes(word)) tokens.push(["control", word]);
+                        else tokens.push(["keyword", word]);
+                    } else if (booleans.includes(word)) tokens.push(["boolean", word]);
+                    else tokens.push(["variable", word]);
+                    continue;
+                }
+
+                // Symbols
+                let matchedSymbol = symbols.find(sym => code.startsWith(sym, i));
+                if (matchedSymbol) { tokens.push(["symbol", matchedSymbol]); i += matchedSymbol.length; continue; }
+
+                // Unknown
+                tokens.push(["unknown", char]); i++;
+            }
+
+            return tokens;
+        }
+
+
+        function updateHighlight() {
+            const lines = textarea.value.split("\n");
+            highlightLayer.innerHTML = "";
+            gutter.innerHTML = "";
+
+            lines.forEach((line, i) => {
+                const lineDiv = document.createElement("div");
+                const tokens = tokenizePython(line);
+                for (let token of tokens) {
+                    const span = document.createElement("span");
+                    span.className = token[0];
+                    span.textContent = token[1];
+                    lineDiv.appendChild(span);
+                }
+                highlightLayer.appendChild(lineDiv);
+
+                const numDiv = document.createElement("div");
+                numDiv.className = "line-number";
+                numDiv.textContent = i + 1;
+                gutter.appendChild(numDiv);
+            });
+        }
+
+        textarea.addEventListener("input", updateHighlight);
+        textarea.addEventListener("scroll", () => {
+            highlightLayer.style.top = `-${textarea.scrollTop}px`;
+            highlightLayer.style.left = `-${textarea.scrollLeft}px`;
+            gutter.scrollTop = textarea.scrollTop;
         });
-      })
-      .catch(err => {
-        console.error("Failed to load article file:", err);
-      });
-  </script>
+
+        textarea.addEventListener("keydown", e => {
+            const value = textarea.value;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            if (e.key === "Tab") {
+                e.preventDefault();
+
+                // Get the start and end of the full lines containing the selection
+                const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+                const lineEnd = value.indexOf("\n", end);
+                const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
+
+                const selectedText = value.slice(lineStart, selectionEnd);
+                const lines = selectedText.split("\n");
+
+                if (e.shiftKey) {
+                    // Outdent
+                    const outdented = lines.map(line => line.startsWith("    ") ? line.slice(4) : line);
+                    const newText = outdented.join("\n");
+                    textarea.value = value.slice(0, lineStart) + newText + value.slice(selectionEnd);
+
+                    const diff = lines.reduce((acc, line) => acc + (line.startsWith("    ") ? 4 : 0), 0);
+                    textarea.selectionStart = start - Math.min(4, start - lineStart);
+                    textarea.selectionEnd = end - diff;
+                } else {
+                    // Indent
+                    const indented = lines.map(line => "    " + line);
+                    const newText = indented.join("\n");
+                    textarea.value = value.slice(0, lineStart) + newText + value.slice(selectionEnd);
+
+                    textarea.selectionStart = start + 4;
+                    textarea.selectionEnd = end + 4 * lines.length;
+                }
+
+                updateHighlight();
+            }
+
+            if (e.key === "Enter") {
+                e.preventDefault();
+
+                // Get the start of the current line
+                const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+                const currentLine = value.slice(lineStart, start);
+
+                // Count current line's indentation
+                const indentMatch = currentLine.match(/^\s*/);
+                const currentIndent = indentMatch ? indentMatch[0] : "";
+
+                // If line ends with ':', add extra indentation
+                const extraIndent = currentLine.trim().endsWith(":") ? "    " : "";
+
+                const newCursorPos = start + 1 + currentIndent.length + extraIndent.length;
+
+                textarea.value = value.slice(0, start) + "\n" + currentIndent + extraIndent + value.slice(end);
+                textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+
+                updateHighlight();
+            }
+        });
+
+        undoBtn.addEventListener('click', () => document.execCommand('undo'));
+        redoBtn.addEventListener('click', () => document.execCommand('redo'));
+
+        runBtn.addEventListener('click', () => {
+            outputArea.textContent = 'Running...';
+            fetch('http://10.0.0.182:5000/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: textarea.value
+            }).then(response => response.text())
+                .then(data => outputArea.textContent = data)
+                .catch(err => outputArea.textContent = 'Error: ' + err);
+        });
+
+        updateHighlight();
+    </script>
 </body>
+
 </html>
