@@ -194,6 +194,7 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
+        
     </style>
 </head>
 
@@ -357,6 +358,10 @@ greet("Alice")`;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
 
+            if (e.ctrlKey && e.key.toLowerCase() === "r") {
+                e.preventDefault();
+                run();
+            }
             if (e.key === "Tab") {
                 e.preventDefault();
 
@@ -415,8 +420,7 @@ greet("Alice")`;
 
         undoBtn.addEventListener('click', () => document.execCommand('undo'));
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
-
-        runBtn.addEventListener('click', () => {
+        function run(){
             outputArea.textContent = 'Running...';
             fetch('https://sepaled-miller-nonvigilantly.ngrok-free.app/run', {
                 method: 'POST',
@@ -425,7 +429,8 @@ greet("Alice")`;
             }).then(response => response.text())
                 .then(data => outputArea.textContent = data)
                 .catch(err => outputArea.textContent = 'Error: ' + err);
-        });
+        }
+        runBtn.addEventListener('click', run);
 
         updateHighlight();
     </script>
