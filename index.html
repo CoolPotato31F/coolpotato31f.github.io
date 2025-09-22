@@ -494,28 +494,6 @@ greet("Alice")`;
 
         updateHighlight();
 
-        let lastTimestamp = null;
-        let lastAnnouncment = "";
-        async function fetchAnnouncement() {
-            try {
-                const res = await fetch(`${NGROK_URL}/latest_announcement`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-
-                if (data.timestamp !== lastTimestamp && data.message && lastAnnouncment != data.message) {
-                    lastTimestamp = data.timestamp;
-                    announcementBox.textContent = `${data.author}: ${data.message}`;
-                    announcementBox.style.top = '10px';
-                    lastAnnouncment = data.message
-                    setTimeout(() => announcementBox.style.top = '-60px', 5000);
-
-                }
-            } catch (err) {
-                console.error("Announcement fetch error:", err);
-            }
-        }
-
-        setInterval(fetchAnnouncement, 500);
     </script>
 </body>
 
