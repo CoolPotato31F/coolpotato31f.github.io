@@ -596,7 +596,6 @@ greet("Alice")`;
             const value = textarea.value;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
-
             if (e.ctrlKey && e.key.toLowerCase() === "r") {
                 e.preventDefault();
                 run();
@@ -676,6 +675,7 @@ greet("Alice")`;
                     updateHighlight();
                 }
             }
+            saveString()
         });
 
         undoBtn.addEventListener('click', () => document.execCommand('undo'));
@@ -738,7 +738,7 @@ greet("Alice")`;
             console.log(msg)
             if (msg.from === "dashboard") {
                 if (msg.type === "announcement") {
-                    createAnnouncement(msg.text, msg.length);
+                    createAnnouncement(msg.text, max(msg.length * 1000, 10000));
                 } else if (msg.type === "lock") {
                     console.log("hello")
                     textarea.disabled = msg.locked;
@@ -760,12 +760,36 @@ greet("Alice")`;
             }
         };
 
+        function max(a, b) {
+            if (a) return a
+            return b
+        }
+
         function formatTime(sec) {
             const h = Math.floor(sec / 3600).toString().padStart(2, '0');
             const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
             const s = (sec % 60).toString().padStart(2, '0');
+
             return `${h}:${m}:${s}`;
         }
+
+        function saveString() {
+            let text = textarea.value;
+            localStorage.setItem("savedText", text);
+        }
+
+        function loadString() {
+            let saved = localStorage.getItem("savedText");
+            if (saved) {
+                textarea.value = saved;
+                updateHighlight();
+            }
+        }
+        window.addEventListener("load", loadString);
+
+        // Save text automatically on exit or reload
+        window.addEventListener("beforeunload", saveString);
+        loadString()
     </script>
 </body>
 
