@@ -70,7 +70,7 @@
             background: #0f1724;
             color: white;
         }
-
+        
         .editor-container {
             display: flex;
             width: 100%;
@@ -236,7 +236,6 @@
             font-family: monospace;
         }
 
-        /* Announcement system */
         .announcement-container {
             position: fixed;
             top: 50px;
@@ -247,7 +246,6 @@
             gap: 10px;
             z-index: 9999;
             pointer-events: none;
-            /* allow clicks only on announcements */
         }
 
         .announcement {
@@ -338,7 +336,6 @@
             <button class="button" id="redo">Redo</button>
         </div>
 
-        <!-- Centered absolutely -->
         <div class="toolbar-center-absolute">
             <input type="text" id="username" placeholder="Username">
         </div>
@@ -357,7 +354,6 @@
         </div>
     </div>
 
-    <!-- Announcement container -->
     <div class="announcement-container" id="announcementContainer"></div>
 
     <div class="editor-container">
@@ -422,33 +418,28 @@ greet("Alice")`;
 
             announcementContainer.appendChild(ann);
 
-            // Fade in
             requestAnimationFrame(() => {
                 ann.classList.add("show");
             });
 
-            // Timer bar shrink
             setTimeout(() => {
                 timerBar.style.transition = `width ${duration}ms linear`;
                 timerBar.style.width = "0%";
             }, 50);
 
-            // Auto remove after duration with fade + slide
             const autoRemove = setTimeout(() => {
                 removeAnnouncement(ann);
             }, duration);
 
-            // Close button
             closeBtn.addEventListener("click", () => {
                 clearTimeout(autoRemove);
                 removeAnnouncement(ann);
             });
 
-            // Helper to remove with fade/slide
             function removeAnnouncement(element) {
                 element.classList.remove("show");
                 element.classList.add("hide");
-                setTimeout(() => element.remove(), 300); // match transition
+                setTimeout(() => element.remove(), 300);
             }
         }
         function tokenizePython(code) {
@@ -471,7 +462,6 @@ greet("Alice")`;
             while (i < code.length) {
                 let char = code[i];
 
-                // Whitespace
                 if (char === " " || char === "\t") {
                     let start = i;
                     while (i < code.length && (code[i] === " " || code[i] === "\t")) i++;
@@ -479,11 +469,9 @@ greet("Alice")`;
                     continue;
                 }
 
-                // String (including f-strings)
                 if (char === '"' || char === "\'" || ((char === "f" || char === "F") && (code[i + 1] === "'" || code[i + 1] === '"'))) {
                     let start = i;
 
-                    // Skip the f/F prefix if present
                     if ((char === "f" || char === "F") && (code[i + 1] === "'" || code[i + 1] === '"')) {
                         i++;
                         char = code[i];
@@ -501,7 +489,6 @@ greet("Alice")`;
                     continue;
                 }
 
-                // Numbers
                 if (/[0-9]/.test(char)) {
                     let start = i;
                     while (i < code.length && /[0-9.]/.test(code[i])) i++;
@@ -509,7 +496,6 @@ greet("Alice")`;
                     continue;
                 }
 
-                // Words (variables, keywords, functions)
                 if (/[a-zA-Z_]/.test(char)) {
                     let start = i;
                     while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
@@ -528,11 +514,9 @@ greet("Alice")`;
                     continue;
                 }
 
-                // Symbols
                 let matchedSymbol = symbols.find(sym => code.startsWith(sym, i));
                 if (matchedSymbol) { tokens.push(["symbol", matchedSymbol]); i += matchedSymbol.length; continue; }
 
-                // Unknown
                 tokens.push(["unknown", char]); i++;
             }
 
@@ -545,9 +529,8 @@ greet("Alice")`;
             highlightLayer.innerHTML = "";
             gutter.innerHTML = "";
 
-            // Use hidden measure element to detect wrapping
             const measure = document.getElementById("measure");
-            measure.style.width = textarea.clientWidth + "px"; // match editor width
+            measure.style.width = textarea.clientWidth + "px";
 
             lines.forEach((line, i) => {
                 const lineDiv = document.createElement("div");
@@ -561,22 +544,19 @@ greet("Alice")`;
                 }
                 highlightLayer.appendChild(lineDiv);
 
-                // measure how many visual lines it wraps into
-                measure.textContent = line || " "; // avoid empty collapsing
+                measure.textContent = line || " ";
                 const height = measure.offsetHeight;
                 const wraps = Math.ceil(height / 20);
 
-                // Add gutter lines
                 const numDiv = document.createElement("div");
                 numDiv.className = "line-number";
                 numDiv.textContent = i + 1;
                 gutter.appendChild(numDiv);
 
-                // Add ghost lines for wrapped segments
                 for (let w = 2; w < wraps; w++) {
                     const ghostLine = document.createElement("div");
                     ghostLine.className = "line-number blank";
-                    ghostLine.textContent = ""; // no number
+                    ghostLine.textContent = "";
                     ghostLine.style = "height: 20px;"
                     gutter.appendChild(ghostLine.cloneNode());
                     highlightLayer.appendChild(ghostLine);
@@ -603,7 +583,6 @@ greet("Alice")`;
             if (e.key === "Tab") {
                 e.preventDefault();
 
-                // Get the start and end of the full lines containing the selection
                 const lineStart = value.lastIndexOf("\n", start - 1) + 1;
                 const lineEnd = value.indexOf("\n", end);
                 const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
@@ -612,7 +591,6 @@ greet("Alice")`;
                 const lines = selectedText.split("\n");
 
                 if (e.shiftKey) {
-                    // Outdent
                     const outdented = lines.map(line => line.startsWith("    ") ? line.slice(4) : line);
                     const newText = outdented.join("\n");
                     textarea.value = value.slice(0, lineStart) + newText + value.slice(selectionEnd);
@@ -621,7 +599,6 @@ greet("Alice")`;
                     textarea.selectionStart = start - Math.min(4, start - lineStart);
                     textarea.selectionEnd = end - diff;
                 } else {
-                    // Indent
                     const indented = lines.map(line => "    " + line);
                     const newText = indented.join("\n");
                     textarea.value = value.slice(0, lineStart) + newText + value.slice(selectionEnd);
@@ -636,15 +613,12 @@ greet("Alice")`;
             if (e.key === "Enter") {
                 e.preventDefault();
 
-                // Get the start of the current line
                 const lineStart = value.lastIndexOf("\n", start - 1) + 1;
                 const currentLine = value.slice(lineStart, start);
 
-                // Count current line's indentation
                 const indentMatch = currentLine.match(/^\s*/);
                 const currentIndent = indentMatch ? indentMatch[0] : "";
 
-                // If line ends with ':', add extra indentation
                 const extraIndent = currentLine.trim().endsWith(":") ? "    " : "";
 
                 const newCursorPos = start + 1 + currentIndent.length + extraIndent.length;
@@ -658,12 +632,10 @@ greet("Alice")`;
                 const lineStart = value.lastIndexOf("\n", start - 1) + 1;
                 const beforeCursor = value.slice(lineStart, start);
 
-                // Only if we're still in the leading whitespace of this line
                 if (/^\s*$/.test(beforeCursor) && beforeCursor.length > 0) {
                     e.preventDefault();
 
-                    const tabSize = 4; // spaces per tab
-                    // Remove the remainder of spaces to nearest tab stop
+                    const tabSize = 4;
                     const remainder = beforeCursor.length % tabSize || tabSize;
                     const removeCount = Math.min(remainder, beforeCursor.length);
 
@@ -732,7 +704,6 @@ greet("Alice")`;
         const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
         let ws = new WebSocket(SERVER_URL);
 
-        // Receive messages from server
         ws.onmessage = (event) => {
             const msg = JSON.parse(event.data);
             console.log(msg)
@@ -787,7 +758,6 @@ greet("Alice")`;
         }
         window.addEventListener("load", loadString);
 
-        // Save text automatically on exit or reload
         window.addEventListener("beforeunload", saveString);
         loadString()
     </script>
