@@ -52,7 +52,7 @@
             background: #22c55e;
         }
 
-        
+
         .toolbar-center-absolute {
             position: absolute;
             left: 50%;
@@ -70,7 +70,6 @@
             background: #0f1724;
             color: white;
         }
-
 
         .editor-container {
             display: flex;
@@ -110,6 +109,10 @@
             bottom: 0;
         }
 
+        .line-number.blank {
+            height: 20px;
+        }
+
         .highlight-layer,
         .textarea-layer {
             position: absolute;
@@ -132,6 +135,7 @@
             pointer-events: none;
             z-index: 1;
             overflow: visible;
+            scrollbar-width: 0;
         }
 
         .textarea-layer {
@@ -196,6 +200,7 @@
             font-weight: bold;
         }
 
+        .whitespace,
         .variable,
         .symbol {
             color: #e2e8f0;
@@ -222,29 +227,109 @@
         }
 
         .output-area {
-            color: white; 
+            color: white;
             white-space: pre-wrap;
             font-family: monospace;
         }
-        .announcement-box {
+
+        /* Announcement system */
+        .announcement-container {
             position: fixed;
-            top: -60px;
+            top: 50px;
             left: 50%;
             transform: translateX(-50%);
-            background: #3b82f6;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 9999;
+            pointer-events: none;
+            /* allow clicks only on announcements */
+        }
+
+        .announcement {
+            background: #334155;
             color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 20;
+            padding: 12px 16px;
+            border-radius: 8px;
+            min-width: 250px;
+            max-width: 400px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            pointer-events: all;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+        }
+
+        .announcement.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .announcement.move {
+            transform: translateY(-20px);
+        }
+
+        .announcement.hide {
+            opacity: 0;
+            transform: translateY(-20px);
+            margin: 0;
+        }
+
+        .announcement .close-btn {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            cursor: pointer;
             font-weight: bold;
-            transition: top 0.5s ease;
+            color: #f87171;
+        }
+
+        .timer-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #22c55e;
+            width: 100%;
+            transition: width linear;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 
 <body>
+    <div id="measure" style="
+        visibility:hidden;
+        position:absolute;
+        white-space:pre-wrap;
+        word-wrap:break-word;
+        top:0; left:0;
+        width:100%;
+        font-family:monospace;
+        font-size:14px;
+        line-height:20px;
+        padding:5px 10px;
+        box-sizing:border-box;
+        ">
+    </div>
     <div class="toolbar">
         <div class="toolbar-left">
+            <button class="button" id="openFileBtn">Open</button>
+            <input type="file" id="fileInput" style="display:none" />
+            <button class="button" id="saveFileBtn">Save</button>
             <button class="button" id="undo">Undo</button>
             <button class="button" id="redo">Redo</button>
         </div>
@@ -255,21 +340,47 @@
         </div>
 
         <div class="toolbar-right">
+            <span id="timerDisplayToolbar" style="
+        margin-right: 10px;
+        color: #ffffff;
+        font-family: monospace;
+        font-weight: bold;
+        min-width: 80px;
+        text-align: right;
+        font-size: 120%;
+    ">00:00:00</span>
             <button class="run" id="run">Run</button>
         </div>
     </div>
+
+    <!-- Announcement container -->
+    <div class="announcement-container" id="announcementContainer"></div>
+
     <div class="editor-container">
+
         <div class="editor-wrap">
+
             <div class="gutter" id="gutter"></div>
             <div class="editor-content">
                 <pre id="highlight" class="highlight-layer"></pre>
-                <textarea id="editor" class="textarea-layer" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+                <textarea id="editor" class="textarea-layer" spellcheck="false" autocomplete="off" autocorrect="off"
+                    autocapitalize="off"></textarea>
             </div>
+            <div id="lockOverlay" style="
+        position:absolute;
+        top:0;
+        left:0;
+        right:0;
+        bottom:0;
+        background: rgba(255,0,0,0.3);
+        pointer-events:none;
+        border-radius: 15px;
+        display:none;
+        z-index: 5;"></div>
         </div>
         <div class="output-area" id="output"></div>
     </div>
 
-    <div class="announcement-box" id="announcementBox"></div>
     <script>
         const textarea = document.getElementById("editor");
         const highlightLayer = document.getElementById("highlight");
@@ -279,9 +390,10 @@
         const runBtn = document.getElementById("run");
         const outputArea = document.getElementById("output");
         const usernameInput = document.getElementById("username");
-        const announcementBox = document.getElementById("announcementBox");
 
-        const NGROK_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
+        const announcementContainer = document.getElementById("announcementContainer");
+        const SERVER_URL = "wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/editor";
+        const HTTP_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
 
         textarea.value = `# Sample Python code
 def greet(name):
@@ -290,7 +402,49 @@ def greet(name):
     else:
         print("Hello, world!")
 greet("Alice")`;
+        function createAnnouncement(message, duration = 5000) {
+            const ann = document.createElement("div");
+            ann.className = "announcement";
+            ann.innerHTML = `
+        <span class="close-btn">&times;</span>
+        <div class="message">${message}</div>
+        <div class="timer-bar"></div>
+    `;
 
+            const closeBtn = ann.querySelector(".close-btn");
+            const timerBar = ann.querySelector(".timer-bar");
+
+            announcementContainer.appendChild(ann);
+
+            // Fade in
+            requestAnimationFrame(() => {
+                ann.classList.add("show");
+            });
+
+            // Timer bar shrink
+            setTimeout(() => {
+                timerBar.style.transition = `width ${duration}ms linear`;
+                timerBar.style.width = "0%";
+            }, 50);
+
+            // Auto remove after duration with fade + slide
+            const autoRemove = setTimeout(() => {
+                removeAnnouncement(ann);
+            }, duration);
+
+            // Close button
+            closeBtn.addEventListener("click", () => {
+                clearTimeout(autoRemove);
+                removeAnnouncement(ann);
+            });
+
+            // Helper to remove with fade/slide
+            function removeAnnouncement(element) {
+                element.classList.remove("show");
+                element.classList.add("hide");
+                setTimeout(() => element.remove(), 300); // match transition
+            }
+        }
         function tokenizePython(code) {
             const keywords = ["def", "if", "else", "elif", "for", "while", "return", "import", "from", "as", "class", "try", "except", "finally", "with", "lambda", "yield", "continue", "break", "in"];
             const logicKeywords = ["if", "else", "elif", "for", "while", "try", "except", "finally", "with"];
@@ -315,7 +469,7 @@ greet("Alice")`;
                 if (char === " " || char === "\t") {
                     let start = i;
                     while (i < code.length && (code[i] === " " || code[i] === "\t")) i++;
-                    tokens.push(["variable", code.slice(start, i)]);
+                    tokens.push(["whitespace", code.slice(start, i)]);
                     continue;
                 }
 
@@ -385,6 +539,10 @@ greet("Alice")`;
             highlightLayer.innerHTML = "";
             gutter.innerHTML = "";
 
+            // Use hidden measure element to detect wrapping
+            const measure = document.getElementById("measure");
+            measure.style.width = textarea.clientWidth + "px"; // match editor width
+
             lines.forEach((line, i) => {
                 const lineDiv = document.createElement("div");
                 const tokens = tokenizePython(line);
@@ -396,14 +554,29 @@ greet("Alice")`;
                 }
                 highlightLayer.appendChild(lineDiv);
 
+                // measure how many visual lines it wraps into
+                measure.textContent = line || " "; // avoid empty collapsing
+                const height = measure.offsetHeight;
+                const wraps = Math.ceil(height / 20); // line-height = 20px
+
+                // Add gutter lines
                 const numDiv = document.createElement("div");
                 numDiv.className = "line-number";
                 numDiv.textContent = i + 1;
                 gutter.appendChild(numDiv);
+
+                // Add ghost lines for wrapped segments
+                for (let w = 2; w < wraps; w++) {
+                    const ghostLine = document.createElement("div");
+                    ghostLine.className = "line-number blank";
+                    ghostLine.textContent = ""; // no number
+                    gutter.appendChild(ghostLine);
+                }
             });
         }
 
         textarea.addEventListener("input", updateHighlight);
+        window.addEventListener("resize", updateHighlight);
         textarea.addEventListener("scroll", () => {
             highlightLayer.style.top = `-${textarea.scrollTop}px`;
             highlightLayer.style.left = `-${textarea.scrollLeft}px`;
@@ -477,23 +650,96 @@ greet("Alice")`;
 
         undoBtn.addEventListener('click', () => document.execCommand('undo'));
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
-        function run() {
-            outputArea.textContent = 'Running...';
-            fetch(`${NGROK_URL}/run`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: usernameInput.value || "anonymous",
-                    code: textarea.value
-                })
-            }).then(response => response.text())
-              .then(data => outputArea.textContent = data)
-              .catch(err => outputArea.textContent = 'Error: ' + err);
-        }
+
+        document.getElementById("run").onclick = async () => {
+            const code = textarea.value;
+            const res = await fetch(`${HTTP_URL}/run`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code })
+            });
+            const text = await res.text();
+            outputArea.textContent = text;
+        };
+
         runBtn.addEventListener('click', run);
 
         updateHighlight();
+        const openFileBtn = document.getElementById("openFileBtn");
+        const fileInput = document.getElementById("fileInput");
 
+        // When "Open" is clicked, trigger file dialog
+        openFileBtn.addEventListener("click", () => {
+            fileInput.click();
+        });
+
+        // When a file is selected, read and insert into textarea
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                textarea.value = e.target.result;
+                updateHighlight(); // refresh highlighting
+            };
+            reader.readAsText(file);
+        });
+        const saveFileBtn = document.getElementById("saveFileBtn");
+
+        saveFileBtn.addEventListener("click", () => {
+            const textToSave = textarea.value;
+            const blob = new Blob([textToSave], { type: "text/plain" });
+
+            // Create a temporary download link
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "code.py"; // default filename
+            link.click();
+
+            // Cleanup
+            URL.revokeObjectURL(link.href);
+        });
+        // BroadcastChannel for communication with dashboard
+        const lockOverlay = document.getElementById("lockOverlay");
+        const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
+
+        let ws = new WebSocket(SERVER_URL);
+
+        // Receive messages from server
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            console.log(msg)
+            if (msg.from === "dashboard") {
+                if (msg.type === "announcement") {
+                    createAnnouncement(msg.text, msg.length);
+                } else if (msg.type === "lock") {
+                    console.log("hello")
+                    textarea.disabled = msg.locked;
+                    lockOverlay.style.display = msg.locked ? "block" : "none";
+                    createAnnouncement(msg.locked ? "Editor locked" : "Editor unlocked", 3000);
+                } else if (msg.type === "starter") {
+                    textarea.value = msg.code;
+                    updateHighlight();
+                } else if (msg.type === "clearCode") {
+                    textarea.value = "";
+                    updateHighlight();
+                } else if (msg.type === "timer") {
+                    if (msg.clear || msg.remaining <= 0) {
+                        timerDisplayToolbar.textContent = "";
+                    } else {
+                        timerDisplayToolbar.textContent = formatTime(msg.remaining);
+                    }
+                }
+            }
+        };
+
+        function formatTime(sec) {
+            const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+            const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
     </script>
 </body>
 
