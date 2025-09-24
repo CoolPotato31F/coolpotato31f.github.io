@@ -70,7 +70,7 @@
             background: #0f1724;
             color: white;
         }
-        
+
         .editor-container {
             display: flex;
             width: 100%;
@@ -169,12 +169,12 @@
         }
 
         .keyword {
-            color: #7dd3fc;
+            color: #7db6fc;
             font-weight: bold;
         }
 
         .logic {
-            color: #f97316;
+            color: #c862ff;
             font-weight: bold;
         }
 
@@ -184,7 +184,7 @@
         }
 
         .function {
-            color: #a3e635;
+            color: #f5e077;
         }
 
         .string {
@@ -201,13 +201,16 @@
         }
 
         .whitespace,
-        .variable,
+        .variable {
+            color: #6bf3cc;
+        }
+
         .symbol {
-            color: #e2e8f0;
+            color: #e6ae35;
         }
 
         .comment {
-            color: #cbd5e1;
+            color: #1d9429;
             font-style: bold;
         }
 
@@ -469,26 +472,82 @@ greet("Alice")`;
                     continue;
                 }
 
-                if (char === '"' || char === "\'" || ((char === "f" || char === "F") && (code[i + 1] === "'" || code[i + 1] === '"'))) {
-                    let start = i;
+                if (
+                    char === '"' || char === "'" ||
+                    ((char === "f" || char === "F") && (code[i + 1] === '"' || code[i + 1] === "'" || code.slice(i + 1, i + 3) === '"""' || code.slice(i + 1, i + 3) === "'''"))
+                ) {
+                    let start = i; // start of the full string token
+                    let isFstring = false;
 
-                    if ((char === "f" || char === "F") && (code[i + 1] === "'" || code[i + 1] === '"')) {
+                    // detect f-string
+                    if (char === "f" || char === "F") {
+                        isFstring = true;
                         i++;
                         char = code[i];
                     }
 
+                    // detect triple quote
                     let quote = char;
-                    i++;
-                    while (i < code.length) {
-                        if (code[i] === "\\") i += 2;
-                        else if (code[i] === quote) { i++; break; }
-                        else i++;
+                    let triple = false;
+                    if (code.slice(i, i + 3) === quote.repeat(3)) {
+                        triple = true;
+                        i += 3;
+                    } else {
+                        i++;
                     }
 
-                    tokens.push(["string", code.slice(start, i)]);
+                    let buffer = "";
+                    while (i < code.length) {
+                        if (code[i] === "\\") {
+                            buffer += code.slice(i, i + 2); // keep escape
+                            i += 2;
+                            continue;
+                        }
+
+                        // end of string
+                        if ((!triple && code[i] === quote) || (triple && code.slice(i, i + 3) === quote.repeat(3))) {
+                            i += triple ? 3 : 1;
+                            break;
+                        }
+
+                        // f-string embedded code { ... }
+                        if (isFstring && code[i] === "{") {
+                            // flush collected text so far
+                            if (buffer.length > 0) {
+                                tokens.push(["string", code.slice(start, i)]); // include opening f" and text up to {
+                                buffer = "";
+                                start = i; // reset start for next piece
+                            }
+
+                            // handle code inside braces
+                            let braceDepth = 1;
+                            let exprStart = ++i;
+                            while (i < code.length && braceDepth > 0) {
+                                if (code[i] === "{") braceDepth++;
+                                else if (code[i] === "}") braceDepth--;
+                                i++;
+                            }
+                            let expr = code.slice(exprStart, i - 1);
+
+                            tokens.push(["symbol", "{"]);
+                            tokens.push(...tokenizePython(expr));
+                            tokens.push(["symbol", "}"]);
+
+                            start = i; // next string piece starts after closing }
+                            continue;
+                        }
+
+                        buffer += code[i];
+                        i++;
+                    }
+
+                    // push remaining string part (including quotes if no f-string braces)
+                    if (start < i) {
+                        tokens.push(["string", code.slice(start, i)]);
+                    }
+
                     continue;
                 }
-
                 if (/[0-9]/.test(char)) {
                     let start = i;
                     while (i < code.length && /[0-9.]/.test(code[i])) i++;
