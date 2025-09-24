@@ -220,6 +220,10 @@
             height: 20px;
         }
 
+        .line {
+            height: 20px;
+        }
+
         .editor-content {
             position: relative;
             margin-left: 50px;
@@ -392,8 +396,8 @@
         const usernameInput = document.getElementById("username");
 
         const announcementContainer = document.getElementById("announcementContainer");
-        const SERVER_URL = "wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/editor";
-        const HTTP_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
+
+        const NGROK_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
 
         textarea.value = `# Sample Python code
 def greet(name):
@@ -545,6 +549,7 @@ greet("Alice")`;
 
             lines.forEach((line, i) => {
                 const lineDiv = document.createElement("div");
+                lineDiv.classList.add("line")
                 const tokens = tokenizePython(line);
                 for (let token of tokens) {
                     const span = document.createElement("span");
@@ -557,7 +562,7 @@ greet("Alice")`;
                 // measure how many visual lines it wraps into
                 measure.textContent = line || " "; // avoid empty collapsing
                 const height = measure.offsetHeight;
-                const wraps = Math.ceil(height / 20); // line-height = 20px
+                const wraps = Math.ceil(height / 20);
 
                 // Add gutter lines
                 const numDiv = document.createElement("div");
@@ -570,7 +575,9 @@ greet("Alice")`;
                     const ghostLine = document.createElement("div");
                     ghostLine.className = "line-number blank";
                     ghostLine.textContent = ""; // no number
-                    gutter.appendChild(ghostLine);
+                    ghostLine.style = "height: 20px;"
+                    gutter.appendChild(ghostLine.cloneNode());
+                    highlightLayer.appendChild(ghostLine);
                 }
             });
         }
@@ -646,34 +653,54 @@ greet("Alice")`;
 
                 updateHighlight();
             }
+            if (e.key === "Backspace" && start === end) {
+                const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+                const beforeCursor = value.slice(lineStart, start);
+
+                // Only if we're still in the leading whitespace of this line
+                if (/^\s*$/.test(beforeCursor) && beforeCursor.length > 0) {
+                    e.preventDefault();
+
+                    const tabSize = 4; // spaces per tab
+                    // Remove the remainder of spaces to nearest tab stop
+                    const remainder = beforeCursor.length % tabSize || tabSize;
+                    const removeCount = Math.min(remainder, beforeCursor.length);
+
+                    textarea.value =
+                        value.slice(0, start - removeCount) + value.slice(end);
+
+                    textarea.selectionStart = textarea.selectionEnd = start - removeCount;
+
+                    updateHighlight();
+                }
+            }
         });
 
         undoBtn.addEventListener('click', () => document.execCommand('undo'));
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
-
-        document.getElementById("run").onclick = async () => {
-            const code = textarea.value;
-            const res = await fetch(`${HTTP_URL}/run`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code })
-            });
-            const text = await res.text();
-            outputArea.textContent = text;
-        };
-
+        function run() {
+            outputArea.textContent = 'Running...';
+            fetch(`${NGROK_URL}/run`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: usernameInput.value || "anonymous",
+                    code: textarea.value
+                })
+            }).then(response => response.text())
+                .then(data => outputArea.textContent = data)
+                .catch(err => outputArea.textContent = 'Error: ' + err);
+        }
         runBtn.addEventListener('click', run);
 
         updateHighlight();
         const openFileBtn = document.getElementById("openFileBtn");
         const fileInput = document.getElementById("fileInput");
 
-        // When "Open" is clicked, trigger file dialog
         openFileBtn.addEventListener("click", () => {
             fileInput.click();
         });
 
-        // When a file is selected, read and insert into textarea
         fileInput.addEventListener("change", () => {
             const file = fileInput.files[0];
             if (!file) return;
@@ -681,7 +708,7 @@ greet("Alice")`;
             const reader = new FileReader();
             reader.onload = e => {
                 textarea.value = e.target.result;
-                updateHighlight(); // refresh highlighting
+                updateHighlight();
             };
             reader.readAsText(file);
         });
@@ -691,51 +718,45 @@ greet("Alice")`;
             const textToSave = textarea.value;
             const blob = new Blob([textToSave], { type: "text/plain" });
 
-            // Create a temporary download link
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "code.py"; // default filename
+            link.download = "code.py";
             link.click();
 
-            // Cleanup
             URL.revokeObjectURL(link.href);
         });
-        // BroadcastChannel for communication with dashboard
+        const channel = new BroadcastChannel("announcements");
         const lockOverlay = document.getElementById("lockOverlay");
         const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
 
-        let ws = new WebSocket(SERVER_URL);
-        // Receive messages from server
-        ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            console.log(msg)
-            if (msg.from === "dashboard") {
-                if (msg.type === "announcement") {
-                    createAnnouncement(msg.text, max(msg.length, 5)*1000);
-                } else if (msg.type === "lock") {
-                    console.log("hello")
-                    textarea.disabled = msg.locked;
-                    lockOverlay.style.display = msg.locked ? "block" : "none";
-                    createAnnouncement(msg.locked ? "Editor locked" : "Editor unlocked", 3000);
-                } else if (msg.type === "starter") {
-                    textarea.value = msg.code;
-                    updateHighlight();
-                } else if (msg.type === "clearCode") {
-                    textarea.value = "";
-                    updateHighlight();
-                } else if (msg.type === "timer") {
-                    if (msg.clear || msg.remaining <= 0) {
-                        timerDisplayToolbar.textContent = "";
-                    } else {
-                        timerDisplayToolbar.textContent = formatTime(msg.remaining);
-                    }
+        channel.onmessage = (e) => {
+            const data = e.data;
+
+            if (typeof data === "string") createAnnouncement(data, 5000);
+            else if (data.type === "announcement") createAnnouncement(data.text, data.length * 1000);
+            else if (data.type === "announcementClear") clearAnnouncements();
+            else if (data.type === "lock") {
+                textarea.disabled = data.locked;
+                lockOverlay.style.display = data.locked ? "block" : "none";
+                createAnnouncement(data.locked ? "Editor locked" : "Editor unlocked", 3000);
+            }
+            else if (data.type === "starter") {
+                textarea.value = data.code;
+                updateHighlight();
+            }
+            else if (data.type === "clearCode") {
+                textarea.value = "";
+                updateHighlight();
+            }
+            else if (data.type === "timer") {
+                if (data.clear || data.remaining <= 0) {
+                    timerDisplayToolbar.textContent = "";
+                } else {
+                    timerDisplayToolbar.textContent = formatTime(data.remaining);
                 }
             }
         };
-        function max(a ,b){
-            if (a > b) return a;
-            return b;
-        }
+
         function formatTime(sec) {
             const h = Math.floor(sec / 3600).toString().padStart(2, '0');
             const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
