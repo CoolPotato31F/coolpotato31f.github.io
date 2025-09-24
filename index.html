@@ -398,6 +398,8 @@
         const announcementContainer = document.getElementById("announcementContainer");
 
         const NGROK_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
+        const SERVER_URL = "wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/editor";
+        const HTTP_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
 
         textarea.value = `# Sample Python code
 def greet(name):
@@ -728,31 +730,32 @@ greet("Alice")`;
         const channel = new BroadcastChannel("announcements");
         const lockOverlay = document.getElementById("lockOverlay");
         const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
+        let ws = new WebSocket(SERVER_URL);
 
-        channel.onmessage = (e) => {
-            const data = e.data;
-
-            if (typeof data === "string") createAnnouncement(data, 5000);
-            else if (data.type === "announcement") createAnnouncement(data.text, data.length * 1000);
-            else if (data.type === "announcementClear") clearAnnouncements();
-            else if (data.type === "lock") {
-                textarea.disabled = data.locked;
-                lockOverlay.style.display = data.locked ? "block" : "none";
-                createAnnouncement(data.locked ? "Editor locked" : "Editor unlocked", 3000);
-            }
-            else if (data.type === "starter") {
-                textarea.value = data.code;
-                updateHighlight();
-            }
-            else if (data.type === "clearCode") {
-                textarea.value = "";
-                updateHighlight();
-            }
-            else if (data.type === "timer") {
-                if (data.clear || data.remaining <= 0) {
-                    timerDisplayToolbar.textContent = "";
-                } else {
-                    timerDisplayToolbar.textContent = formatTime(data.remaining);
+        // Receive messages from server
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            console.log(msg)
+            if (msg.from === "dashboard") {
+                if (msg.type === "announcement") {
+                    createAnnouncement(msg.text, msg.length);
+                } else if (msg.type === "lock") {
+                    console.log("hello")
+                    textarea.disabled = msg.locked;
+                    lockOverlay.style.display = msg.locked ? "block" : "none";
+                    createAnnouncement(msg.locked ? "Editor locked" : "Editor unlocked", 3000);
+                } else if (msg.type === "starter") {
+                    textarea.value = msg.code;
+                    updateHighlight();
+                } else if (msg.type === "clearCode") {
+                    textarea.value = "";
+                    updateHighlight();
+                } else if (msg.type === "timer") {
+                    if (msg.clear || msg.remaining <= 0) {
+                        timerDisplayToolbar.textContent = "";
+                    } else {
+                        timerDisplayToolbar.textContent = formatTime(msg.remaining);
+                    }
                 }
             }
         };
