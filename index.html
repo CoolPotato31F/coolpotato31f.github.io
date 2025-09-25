@@ -121,13 +121,12 @@
             right: 0;
             bottom: 0;
             margin: 0;
-            padding: 5px 10px;
+            padding: 5px 0px;
             font-family: inherit;
             font-size: 14px;
             line-height: 20px;
             white-space: pre-wrap;
             word-wrap: break-word;
-            border-radius: 15px;
         }
 
         .highlight-layer {
@@ -147,7 +146,7 @@
             z-index: 2;
             resize: none;
             overflow: auto;
-            padding: 5px 10px;
+            padding: 5px 0px;
         }
 
         .textarea-layer::-webkit-scrollbar {
@@ -169,54 +168,69 @@
         }
 
         .keyword {
-            color: #7db6fc;
+            color: #4f9aff;
+            /* brighter, more saturated blue */
             font-weight: bold;
         }
 
         .logic {
-            color: #c862ff;
+            color: #d05cff;
+            /* vivid magenta */
             font-weight: bold;
         }
 
         .control {
-            color: #facc15;
+            color: #ffd43b;
+            /* brighter yellow-gold */
             font-weight: bold;
         }
 
         .function {
             color: #f5e077;
+            /* unchanged */
         }
 
         .string {
-            color: #f472b6;
+            color: #ff6fae;
+            /* hot pink */
         }
 
         .number {
-            color: #fbbf24;
+            color: #ffae42;
+            /* orange-gold */
         }
 
         .boolean {
-            color: #22d3ee;
+            color: #1ee6ff;
+            /* cyan (brighter than before) */
             font-weight: bold;
         }
 
         .whitespace,
         .variable {
-            color: #6bf3cc;
+            color: #4ef5c8;
+            /* bright green */
         }
 
         .symbol {
             color: #e6ae35;
+            /* unchanged */
         }
 
         .comment {
-            color: #1d9429;
-            font-style: bold;
+            color: #2acb3f;
+            /* brighter green, easier to spot */
+            font-style: italic;
         }
 
         .unknown {
-            color: #f87171;
-            background-color: rgba(255, 0, 0, 0.1);
+            color: #ff5c5c;
+            /* stronger red */
+            background-color: rgba(255, 0, 0, 0.15);
+        }
+
+        .misc {
+            color: #97afaf;
         }
 
         .line-number {
@@ -337,6 +351,7 @@
             <button class="button" id="saveFileBtn">Save</button>
             <button class="button" id="undo">Undo</button>
             <button class="button" id="redo">Redo</button>
+            <button class="button" id="settings">Settings</button>
         </div>
 
         <div class="toolbar-center-absolute">
@@ -352,6 +367,7 @@
         min-width: 80px;
         text-align: right;
         font-size: 120%;
+        display: none;
     ">00:00:00</span>
             <button class="run" id="run">Run</button>
         </div>
@@ -384,6 +400,83 @@
         <div class="output-area" id="output"></div>
     </div>
 
+    <div id="settingsPanel" style="
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 300px;
+    height: 400px;
+    background: #1e293b;
+    border-radius: 10px;
+    padding-left: 15px;
+    color: white;
+    display: none;
+    z-index: 1000;
+    margin-top: 0px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    overflow-y: auto;
+">
+        <h3>Editor Settings</h3>
+
+        <div style="margin-bottom: 15px;">
+            <label><input type="checkbox" id="autoPairs" checked> Auto parentheses/quotes</label>
+        </div>
+
+        <div>
+            <h4>Colors</h4>
+            <div class="color-settings" style="display:flex; flex-wrap:wrap; gap:5px;">
+                <label>Keyword <input type="color" id="colorKeyword" value="#4f9aff"></label>
+                <label>Logic <input type="color" id="colorLogic" value="#d05cff"></label>
+                <label>Control <input type="color" id="colorControl" value="#ffd43b"></label>
+                <label>Function <input type="color" id="colorFunction" value="#f5e077"></label>
+                <label>String <input type="color" id="colorString" value="#ff6fae"></label>
+                <label>Number <input type="color" id="colorNumber" value="#ffae42"></label>
+                <label>Boolean <input type="color" id="colorBoolean" value="#1ee6ff"></label>
+                <label>Variable <input type="color" id="colorVariable" value="#4ef5c8"></label>
+                <label>Symbol <input type="color" id="colorSymbol" value="#e6ae35"></label>
+                <label>Comment <input type="color" id="colorComment" value="#2acb3f"></label>
+                <label>Unknown <input type="color" id="colorUnknown" value="#ff5c5c"></label>
+            </div>
+        </div>
+        <label for="tabSize" style="margin-top: 10px;">Tab size:</label>
+        <select id="tabSize" style="margin-top: 10px;">
+            <option value="2">2 spaces</option>
+            <option value="4" selected>4 spaces</option>
+            <option value="8">8 spaces</option>
+        </select>
+        <br><br>
+
+        <label for="useSpaces">
+            <input type="checkbox" id="useSpaces" checked>
+            Use spaces instead of tabs
+        </label>
+        <br><br>
+
+        <label for="autoIndent">
+            <input type="checkbox" id="autoIndent" checked>
+            Auto Indentation
+        </label>
+        <br></br>
+        <button id="resetSettings" style="
+    margin-bottom: 15px;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    background: #f87171;
+    color: white;
+    cursor: pointer;
+">Reset Settings</button>
+        <span id="closeSettings" style="
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #f87171;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+">×</span>
+    </div>
+
     <script>
         const textarea = document.getElementById("editor");
         const highlightLayer = document.getElementById("highlight");
@@ -400,6 +493,15 @@
         const SERVER_URL = "wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/editor";
         const HTTP_URL = "https://sepaled-miller-nonvigilantly.ngrok-free.app";
 
+        const settingsBtn = document.getElementById("settings");
+        const settingsPanel = document.getElementById("settingsPanel");
+        const closeSettingsBtn = document.getElementById("closeSettings");
+        const autoPairsCheckbox = document.getElementById("autoPairs");
+        const tabSizeSelect = document.getElementById("tabSize");
+        const useSpacesCheckbox = document.getElementById("useSpaces");
+        const autoIndentCheckbox = document.getElementById("autoIndent");
+        const resetBtn = document.getElementById("resetSettings");
+
         textarea.value = `# Sample Python code
 def greet(name):
     if name:
@@ -407,6 +509,122 @@ def greet(name):
     else:
         print("Hello, world!")
 greet("Alice")`;
+
+        function resetSettings() {
+            const confirmSend = confirm("Are you sure you want to reset your settings");
+            if (!confirmSend) return;
+
+            const defaultColors = {
+                keyword: "#4f9aff",
+                logic: "#d05cff",
+                control: "#ffd43b",
+                function: "#f5e077",
+                string: "#ff6fae",
+                number: "#ffae42",
+                boolean: "#1ee6ff",
+                variable: "#4ef5c8",
+                symbol: "#e6ae35",
+                comment: "#2acb3f",
+                unknown: "#ff5c5c"
+            };
+
+            autoPairsCheckbox.checked = true;
+            tabSizeSelect.value = 4;
+            useSpacesCheckbox.checked = true;
+            autoIndentCheckbox.checked = true;
+
+            for (let key in colorInputs) {
+                colorInputs[key].value = defaultColors[key];
+                document.querySelectorAll(`.${key}`).forEach(el => {
+                    el.style.color = defaultColors[key];
+                });
+            }
+
+            saveSettings();
+        }
+
+        resetBtn.addEventListener("click", resetSettings);
+
+        settingsBtn.addEventListener("click", () => {
+            settingsPanel.style.display = settingsPanel.style.display === "none" ? "block" : "none";
+        });
+        closeSettingsBtn.addEventListener("click", () => settingsPanel.style.display = "none");
+
+        let autoPairs = autoPairsCheckbox.checked;
+        autoPairsCheckbox.addEventListener("change", () => {
+            autoPairs = autoPairsCheckbox.checked;
+        });
+
+        const colorInputs = {
+            keyword: document.getElementById("colorKeyword"),
+            logic: document.getElementById("colorLogic"),
+            control: document.getElementById("colorControl"),
+            function: document.getElementById("colorFunction"),
+            string: document.getElementById("colorString"),
+            number: document.getElementById("colorNumber"),
+            boolean: document.getElementById("colorBoolean"),
+            variable: document.getElementById("colorVariable"),
+            symbol: document.getElementById("colorSymbol"),
+            comment: document.getElementById("colorComment"),
+            unknown: document.getElementById("colorUnknown")
+        };
+
+        for (let key in colorInputs) {
+            colorInputs[key].addEventListener("input", (e) => {
+                document.querySelectorAll(`.${key}`).forEach(el => {
+                    el.style.color = e.target.value;
+                });
+            });
+        }
+
+        // Load settings from localStorage
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem("editorSettings") || "{}");
+
+            if (settings.autoPairs !== undefined) autoPairsCheckbox.checked = settings.autoPairs;
+            if (settings.tabSize) tabSizeSelect.value = settings.tabSize;
+            if (settings.useSpaces !== undefined) useSpacesCheckbox.checked = settings.useSpaces;
+            if (settings.autoIndent !== undefined) autoIndentCheckbox.checked = settings.autoIndent;
+
+            for (let key in colorInputs) {
+                if (settings.colors && settings.colors[key]) {
+                    colorInputs[key].value = settings.colors[key];
+                    document.querySelectorAll(`.${key}`).forEach(el => {
+                        el.style.color = settings.colors[key];
+                    });
+                }
+            }
+
+            autoPairs = autoPairsCheckbox.checked;
+        }
+
+        function saveSettings() {
+            const settings = {
+                autoPairs: autoPairsCheckbox.checked,
+                tabSize: tabSizeSelect.value,
+                useSpaces: useSpacesCheckbox.checked,
+                autoIndent: autoIndentCheckbox.checked,
+                colors: {}
+            };
+
+            for (let key in colorInputs) {
+                settings.colors[key] = colorInputs[key].value;
+            }
+
+            localStorage.setItem("editorSettings", JSON.stringify(settings));
+        }
+
+        autoPairsCheckbox.addEventListener("change", saveSettings);
+        tabSizeSelect.addEventListener("change", saveSettings);
+        useSpacesCheckbox.addEventListener("change", saveSettings);
+        autoIndentCheckbox.addEventListener("change", saveSettings);
+        for (let key in colorInputs) {
+            colorInputs[key].addEventListener("input", saveSettings);
+        }
+
+        // Load settings on page load
+        window.addEventListener("load", loadSettings);
+
         function createAnnouncement(message, duration = 5000) {
             const ann = document.createElement("div");
             ann.className = "announcement";
@@ -445,11 +663,52 @@ greet("Alice")`;
                 setTimeout(() => element.remove(), 300);
             }
         }
-        function tokenizePython(code) {
+
+        function findDefinedNames(code) {
+            const defined = new Set();
+            const lines = code.split("\n");
+
+            for (let line of lines) {
+                line = line.trim();
+
+                // variable assignment
+                let assignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
+                if (assignMatch) defined.add("variable:" + assignMatch[1]);
+
+                // function def
+                let funcMatch = line.match(/^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+                if (funcMatch) defined.add("function:" + funcMatch[1]);
+
+                // class def
+                let classMatch = line.match(/^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]/);
+                if (classMatch) defined.add("class:" + classMatch[1]);
+
+                // for loop variables
+                let forMatch = line.match(/^for\s+([a-zA-Z_][a-zA-Z0-9_]*)(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*\s+in\s+/);
+                if (forMatch) {
+                    let vars = forMatch[0].slice(4, forMatch[0].indexOf(" in")).split(",").map(v => v.trim());
+                    vars.forEach(v => defined.add("variable:" + v));
+                }
+            }
+            return defined;
+        }
+
+        function tokenizePython(code, definedVars = new Set()) {
             const keywords = ["def", "if", "else", "elif", "for", "while", "return", "import", "from", "as", "class", "try", "except", "finally", "with", "lambda", "yield", "continue", "break", "in"];
             const logicKeywords = ["if", "else", "elif", "for", "while", "try", "except", "finally", "with"];
             const booleans = ["True", "False"];
             const symbols = ["(", ")", ":", ",", ".", "+", "-", "*", "/", "=", "==", "<", ">", "<=", ">=", "!="];
+            const builtInFunctions = [
+                "abs", "all", "any", "ascii", "bin", "bool", "bytearray", "bytes",
+                "callable", "chr", "classmethod", "compile", "complex", "delattr", "dict",
+                "dir", "divmod", "enumerate", "eval", "exec", "filter", "float", "format",
+                "frozenset", "getattr", "globals", "hasattr", "hash", "help", "hex", "id",
+                "input", "int", "isinstance", "issubclass", "iter", "len", "list", "locals",
+                "map", "max", "memoryview", "min", "next", "object", "oct", "open", "ord",
+                "pow", "print", "property", "range", "repr", "reversed", "round", "set",
+                "setattr", "slice", "sorted", "staticmethod", "str", "sum", "super", "tuple",
+                "type", "vars", "zip"
+            ];
             const tokens = []; let i = 0;
 
             const commentIndex = code.indexOf('#');
@@ -559,17 +818,27 @@ greet("Alice")`;
                     let start = i;
                     while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
                     let word = code.slice(start, i);
-
                     let j = i;
                     while (j < code.length && (code[j] === ' ' || code[j] == '\t')) j++;
-                    if (j < code.length && code[j] === '(') {
+                    if (builtInFunctions.includes(word) || definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     } else if (keywords.includes(word)) {
                         if (logicKeywords.includes(word)) tokens.push(["logic", word]);
                         else if (["return", "continue", "break"].includes(word)) tokens.push(["control", word]);
                         else tokens.push(["keyword", word]);
-                    } else if (booleans.includes(word)) tokens.push(["boolean", word]);
-                    else tokens.push(["variable", word]);
+                    } else if (booleans.includes(word)) {
+                        tokens.push(["boolean", word]);
+                    } else if (definedVars.has("variable:" + word)) {
+                        tokens.push(["variable", word]);
+                    } else {
+                        let nextChar = code[i];
+                        console.log(i)
+                        if (/\W/.test(nextChar)) {
+                            tokens.push(["unknown", word]);
+                        } else {
+                            tokens.push(["misc", word]);
+                        }
+                    }
                     continue;
                 }
 
@@ -584,7 +853,10 @@ greet("Alice")`;
 
 
         function updateHighlight() {
-            const lines = textarea.value.split("\n");
+            const code = textarea.value;
+            const definedVars = findDefinedNames(code);
+
+            const lines = code.split("\n");
             highlightLayer.innerHTML = "";
             gutter.innerHTML = "";
 
@@ -594,7 +866,7 @@ greet("Alice")`;
             lines.forEach((line, i) => {
                 const lineDiv = document.createElement("div");
                 lineDiv.classList.add("line")
-                const tokens = tokenizePython(line);
+                const tokens = tokenizePython(line, definedVars);
                 for (let token of tokens) {
                     const span = document.createElement("span");
                     span.className = token[0];
@@ -615,10 +887,8 @@ greet("Alice")`;
                 for (let w = 2; w < wraps; w++) {
                     const ghostLine = document.createElement("div");
                     ghostLine.className = "line-number blank";
-                    ghostLine.textContent = "";
-                    ghostLine.style = "height: 20px;"
-                    gutter.appendChild(ghostLine.cloneNode());
-                    highlightLayer.appendChild(ghostLine);
+                    gutter.appendChild(ghostLine);
+                    highlightLayer.appendChild(ghostLine.cloneNode());
                 }
             });
         }
@@ -635,6 +905,15 @@ greet("Alice")`;
             const value = textarea.value;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
+
+            const pairs = {
+                '(': ')',
+                '[': ']',
+                '{': '}',
+                '"': '"',
+                "'": "'",
+            };
+
             if (e.ctrlKey && e.key.toLowerCase() === "r") {
                 e.preventDefault();
                 run();
@@ -642,49 +921,65 @@ greet("Alice")`;
             if (e.key === "Tab") {
                 e.preventDefault();
 
-                const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-                const lineEnd = value.indexOf("\n", end);
-                const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
+                const tabSize = parseInt(tabSizeSelect.value, 10);
+                const useSpaces = useSpacesCheckbox.checked;
+                const tabChar = useSpaces ? " ".repeat(tabSize) : "\t";
 
-                const selectedText = value.slice(lineStart, selectionEnd);
-                const lines = selectedText.split("\n");
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const value = textarea.value;
 
-                if (e.shiftKey) {
-                    const outdented = lines.map(line => line.startsWith("    ") ? line.slice(4) : line);
-                    const newText = outdented.join("\n");
-                    textarea.value = value.slice(0, lineStart) + newText + value.slice(selectionEnd);
+                if (start !== end) {
+                    // Multi-line selection → indent/outdent whole lines
+                    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+                    const lineEnd = value.indexOf("\n", end);
+                    const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
+                    const selectedText = value.slice(lineStart, selectionEnd);
+                    const lines = selectedText.split("\n");
 
-                    const diff = lines.reduce((acc, line) => acc + (line.startsWith("    ") ? 4 : 0), 0);
-                    textarea.selectionStart = start - Math.min(4, start - lineStart);
-                    textarea.selectionEnd = end - diff;
+                    if (e.shiftKey) {
+                        // Outdent
+                        const outdented = lines.map(line => line.startsWith(tabChar) ? line.slice(tabChar.length) : line);
+                        textarea.value = value.slice(0, lineStart) + outdented.join("\n") + value.slice(selectionEnd);
+                        textarea.selectionStart = start - tabChar.length;
+                        textarea.selectionEnd = end - tabChar.length * lines.length;
+                    } else {
+                        // Indent
+                        const indented = lines.map(line => tabChar + line);
+                        textarea.value = value.slice(0, lineStart) + indented.join("\n") + value.slice(selectionEnd);
+                        textarea.selectionStart = start + tabChar.length;
+                        textarea.selectionEnd = end + tabChar.length * lines.length;
+                    }
                 } else {
-                    const indented = lines.map(line => "    " + line);
-                    const newText = indented.join("\n");
-                    textarea.value = value.slice(0, lineStart) + newText + value.slice(selectionEnd);
-
-                    textarea.selectionStart = start + 4;
-                    textarea.selectionEnd = end + 4 * lines.length;
+                    // Single cursor → insert tab at cursor
+                    textarea.value = value.slice(0, start) + tabChar + value.slice(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + tabChar.length;
                 }
 
                 updateHighlight();
             }
 
             if (e.key === "Enter") {
-                e.preventDefault();
+                if (autoIndentCheckbox.checked) {
 
-                const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-                const currentLine = value.slice(lineStart, start);
 
-                const indentMatch = currentLine.match(/^\s*/);
-                const currentIndent = indentMatch ? indentMatch[0] : "";
+                    e.preventDefault();
 
-                const extraIndent = currentLine.trim().endsWith(":") ? "    " : "";
+                    let tabSize = parseInt(tabSizeSelect.value, 10);
 
-                const newCursorPos = start + 1 + currentIndent.length + extraIndent.length;
+                    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+                    const currentLine = value.slice(lineStart, start);
 
-                textarea.value = value.slice(0, start) + "\n" + currentIndent + extraIndent + value.slice(end);
-                textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+                    const indentMatch = currentLine.match(/^\s*/);
+                    const currentIndent = indentMatch ? indentMatch[0] : "";
 
+                    const extraIndent = currentLine.trim().endsWith(":") ? " ".repeat(tabSize) : "";
+
+                    const newCursorPos = start + 1 + currentIndent.length + extraIndent.length;
+
+                    textarea.value = value.slice(0, start) + "\n" + currentIndent + extraIndent + value.slice(end);
+                    textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+                }
                 updateHighlight();
             }
             if (e.key === "Backspace" && start === end) {
@@ -705,7 +1000,29 @@ greet("Alice")`;
 
                     updateHighlight();
                 }
+
             }
+
+            if (autoPairs && !e.ctrlKey && !e.altKey && !e.metaKey && start === end) {
+                if (pairs[e.key]) {
+                    e.preventDefault();
+                    const closing = pairs[e.key];
+                    textarea.value = value.slice(0, start) + e.key + closing + value.slice(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    updateHighlight();
+                    return;
+                }
+
+                // Handle closing over existing closing char
+                if (Object.values(pairs).includes(e.key)) {
+                    if (value[start] === e.key) {
+                        e.preventDefault();
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                        return;
+                    }
+                }
+            }
+
             saveString()
         });
 
