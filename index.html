@@ -83,7 +83,7 @@
         }
 
         .editor-wrap,
-        .output-area {
+        .output-wrap {
             background: #1e293b;
             border-radius: 15px;
             padding: 10px;
@@ -93,6 +93,7 @@
             margin: 20px
         }
 
+        .gutterOutput,
         .gutter {
             width: 50px;
             background: rgba(0, 0, 0, 0.1);
@@ -110,10 +111,16 @@
             bottom: 0;
         }
 
+        .gutterOutput {
+            width: 85px;
+        }
+
         .line-number.blank {
             height: 20px;
         }
 
+        .output-area,
+        .output-layer,
         .highlight-layer,
         .textarea-layer {
             position: absolute;
@@ -127,7 +134,9 @@
             font-size: 14px;
             line-height: 20px;
             white-space: pre-wrap;
-            word-wrap: break-word;
+            /* preserves spaces and line breaks */
+            overflow-wrap: break-word;
+            /* wrap anywhere to prevent long lines */
         }
 
         .highlight-layer {
@@ -138,6 +147,7 @@
             scrollbar-width: 0;
         }
 
+        .output-area,
         .textarea-layer {
             background: transparent;
             color: transparent;
@@ -242,10 +252,15 @@
             height: 20px;
         }
 
+        .output-content,
         .editor-content {
             position: relative;
             margin-left: 50px;
             height: 100%;
+        }
+
+        .output-content {
+            margin-left: 100px;
         }
 
         .output-area {
@@ -345,6 +360,20 @@
         box-sizing:border-box;
         ">
     </div>
+    <div id="measureOutput" style="
+        visibility:hidden;
+        position:absolute;
+        white-space:pre-wrap;
+        word-wrap:break-word;
+        top:0; left:0;
+        width:100%;
+        font-family:monospace;
+        font-size:14px;
+        line-height:20px;
+        padding:5px 10px;
+        box-sizing:border-box;
+        ">
+    </div>
     <div class="toolbar">
         <div class="toolbar-left">
             <button class="button" id="openFileBtn">Open</button>
@@ -398,7 +427,13 @@
         display:none;
         z-index: 5;"></div>
         </div>
-        <div class="output-area" id="output"></div>
+        <div class="output-wrap">
+            <div class="gutterOutput" id="gutterOutput"></div>
+            <div class="output-content">
+                <pre id="outputLines" class="output-layer"></pre>
+                <div class="output-area" id="output"></div>
+            </div>
+        </div>
     </div>
 
     <div id="settingsPanel" style="
@@ -486,7 +521,9 @@
         const redoBtn = document.getElementById("redo");
         const runBtn = document.getElementById("run");
         const outputArea = document.getElementById("output");
+        const gutterOutput = document.getElementById("gutterOutput");
         const usernameInput = document.getElementById("username");
+        const outputLayer = document.getElementById("outputLines")
 
         const announcementContainer = document.getElementById("announcementContainer");
 
@@ -645,6 +682,7 @@ greet("Alice")`;
             });
 
             setTimeout(() => {
+                timerBar.offsetWidth;
                 timerBar.style.transition = `width ${duration}ms linear`;
                 timerBar.style.width = "0%";
             }, 50);
@@ -866,7 +904,7 @@ greet("Alice")`;
             gutter.innerHTML = "";
 
             const measure = document.getElementById("measure");
-            measure.style.width = textarea.clientWidth + "px";
+            measure.style.width = textarea.clientWidth + 20 + "px";
 
             lines.forEach((line, i) => {
                 const lineDiv = document.createElement("div");
@@ -1027,14 +1065,17 @@ greet("Alice")`;
                     }
                 }
             }
-
             saveString()
         });
 
         undoBtn.addEventListener('click', () => document.execCommand('undo'));
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
+        let running = false;
+
         function run() {
             outputArea.textContent = ""; // clear output
+            outputLayer.innerHTML = ""
+            gutterOutput.innerHTML = ""
             const socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
 
             socket.onopen = () => {
@@ -1047,9 +1088,28 @@ greet("Alice")`;
                     socket.close();
                     return;
                 }
-                console.log(event.data)
                 outputArea.textContent += event.data;
                 outputArea.scrollTop = outputArea.scrollHeight;
+
+
+                const measureOutput = document.getElementById("measureOutput");
+                measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+                measureOutput.textContent = event.data || " ";
+                const height = measureOutput.offsetHeight;
+                const wraps = Math.ceil(height / 20);
+
+                const numDiv = document.createElement("div");
+                numDiv.className = "line-number";
+                numDiv.textContent = getCurrentTime();
+                gutterOutput.appendChild(numDiv);
+
+                for (let w = 2; w < wraps; w++) {
+                    const ghostLine = document.createElement("div");
+                    ghostLine.className = "line-number blank";
+                    gutterOutput.appendChild(ghostLine);
+                }
+
             };
 
             socket.onerror = (err) => {
@@ -1057,6 +1117,36 @@ greet("Alice")`;
                 outputArea.textContent += "\n[Error connecting to server]";
             };
         }
+
+        function updateOutputGutter() {
+            const code = outputArea.textContent;
+
+            const lines = code.split("\n");
+            lines.pop()
+            gutterOutput.innerHTML = ""
+
+            const measureOutput = document.getElementById("measureOutput");
+            measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+            lines.forEach((line, i) => {
+                measureOutput.textContent = line || " ";
+                const height = measureOutput.offsetHeight;
+                const wraps = Math.ceil(height / 20);
+
+                const numDiv = document.createElement("div");
+                numDiv.className = "line-number";
+                numDiv.textContent = getCurrentTime();
+                gutterOutput.appendChild(numDiv);
+
+                for (let w = 2; w < wraps; w++) {
+                    const ghostLine = document.createElement("div");
+                    ghostLine.className = "line-number blank";
+                    gutterOutput.appendChild(ghostLine);
+                }
+            });
+        }
+
+        window.addEventListener("resize", updateOutputGutter);
         runBtn.addEventListener('click', run);
 
         updateHighlight();
@@ -1095,7 +1185,7 @@ greet("Alice")`;
         const lockOverlay = document.getElementById("lockOverlay");
         const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
         let ws = new WebSocket(SERVER_URL);
-
+        let timerEnded = true
         ws.onmessage = (event) => {
             const msg = JSON.parse(event.data);
             if (msg.from === "dashboard") {
@@ -1114,8 +1204,15 @@ greet("Alice")`;
                     updateHighlight();
                 } else if (msg.type === "timer") {
                     if (msg.clear || msg.remaining <= 0) {
+                        timerDisplayToolbar.display = "none";
                         timerDisplayToolbar.textContent = "";
+                        if (!timerEnded) {
+                            createAnnouncement("The timer has ended", 5000);
+                            timerEnded = true
+                        }
                     } else {
+                        timerEnded = false
+                        timerDisplayToolbar.style = "margin-right: 10px; color: #ffffff; font-family: monospace; font-weight: bold; min-width: 80px; text-align: right; font-size: 120%; display: block;"
                         timerDisplayToolbar.textContent = formatTime(msg.remaining);
                     }
                 }
@@ -1135,6 +1232,15 @@ greet("Alice")`;
             return `${h}:${m}:${s}`;
         }
 
+
+        function getCurrentTime() {
+            const now = new Date();
+            const h = now.getHours().toString().padStart(2, '0');
+            const m = now.getMinutes().toString().padStart(2, '0');
+            const s = now.getSeconds().toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
         function saveString() {
             let text = textarea.value;
             localStorage.setItem("savedText", text);
@@ -1147,6 +1253,8 @@ greet("Alice")`;
                 updateHighlight();
             }
         }
+
+
         window.addEventListener("load", loadString);
 
         window.addEventListener("beforeunload", saveString);
