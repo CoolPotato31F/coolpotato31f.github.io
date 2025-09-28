@@ -5,11 +5,13 @@
     <meta charset="utf-8" />
     <meta name="google-adsense-account" content="ca-pub-9676048547393313">
     <title>Python Editor</title>
+    <link rel="icon" href="icon.png" type="image/png">
     <style>
         body {
             margin: 0;
             background: #0f1724;
             font-family: monospace;
+            overflow: hidden;
         }
 
         .toolbar {
@@ -88,9 +90,14 @@
             border-radius: 15px;
             padding: 10px;
             flex: 1;
-            overflow: auto;
+            overflow: hidden;
             position: relative;
             margin: 20px
+        }
+
+        .output-wrap {
+            padding: 0px;
+
         }
 
         .gutterOutput,
@@ -113,6 +120,26 @@
 
         .gutterOutput {
             width: 85px;
+            padding: 5px 5px;
+        }
+
+        .output-wrap {
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .gutterOutput {
+            flex-shrink: 0;
+            width: 85px;
+            overflow: hidden;
+            /* no scroll for gutter itself */
+        }
+
+        .output-content {
+            flex: 1;
+            overflow: auto;
+            /* scrollable content */
         }
 
         .line-number.blank {
@@ -160,20 +187,25 @@
             padding: 5px 0px;
         }
 
+        .output-area::-webkit-scrollbar,
         .textarea-layer::-webkit-scrollbar {
             width: 10px;
         }
 
+        .output-area::-webkit-scrollbar-track,
         .textarea-layer::-webkit-scrollbar-track {
             background: #182130;
             border-radius: 5px;
         }
 
+
+        .output-area::-webkit-scrollbar-thumb,
         .textarea-layer::-webkit-scrollbar-thumb {
             background: #121824;
             border-radius: 5px;
         }
 
+        .output-area::-webkit-scrollbar-thumb:hover,
         .textarea-layer::-webkit-scrollbar-thumb:hover {
             background: rgb(14, 20, 29);
         }
@@ -331,6 +363,26 @@
             transition: width linear;
         }
 
+        .output-area input {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 14px;
+            color: white;
+            background: #1e293b;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding-left: 0;
+            padding-top: 0;
+            overflow: visible;
+            overflow-wrap: anywhere;
+            background-attachment: fixed;
+        }
+
+
+
+
         @keyframes slideDown {
             from {
                 opacity: 0;
@@ -389,17 +441,9 @@
         </div>
 
         <div class="toolbar-right">
-            <span id="timerDisplayToolbar" style="
-        margin-right: 10px;
-        color: #ffffff;
-        font-family: monospace;
-        font-weight: bold;
-        min-width: 80px;
-        text-align: right;
-        font-size: 120%;
-        display: none;
-    ">00:00:00</span>
-            <button class="run" id="run">Run</button>
+            <span id="timerDisplayToolbar"
+                style="margin-right: 10px;color: #ffffff;font-family: monospace;font-weight: bold;min-width: 80px;text-align: right;font-size: 120%;display: none;">00:00:00</span>
+            <button class="run" id="runButton">Run</button>
         </div>
     </div>
 
@@ -519,7 +563,7 @@
         const gutter = document.getElementById("gutter");
         const undoBtn = document.getElementById("undo");
         const redoBtn = document.getElementById("redo");
-        const runBtn = document.getElementById("run");
+        const runBtn = document.getElementById("runButton");
         const outputArea = document.getElementById("output");
         const gutterOutput = document.getElementById("gutterOutput");
         const usernameInput = document.getElementById("username");
@@ -615,7 +659,6 @@ greet("Alice")`;
             });
         }
 
-        // Load settings from localStorage
         function loadSettings() {
             const settings = JSON.parse(localStorage.getItem("editorSettings") || "{}");
 
@@ -660,7 +703,6 @@ greet("Alice")`;
             colorInputs[key].addEventListener("input", saveSettings);
         }
 
-        // Load settings on page load
         window.addEventListener("load", loadSettings);
 
         function createAnnouncement(message, duration = 5000) {
@@ -710,24 +752,19 @@ greet("Alice")`;
             for (let line of lines) {
                 line = line.trim();
 
-                // variable assignment
                 let assignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
                 if (assignMatch) defined.add("variable:" + assignMatch[1]);
 
-                // function def
                 let funcMatch = line.match(/^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/);
                 if (funcMatch) {
                     defined.add("function:" + funcMatch[1]);
-                    // capture function parameters as variables
                     let params = funcMatch[2].split(",").map(p => p.trim()).filter(p => p.length > 0);
                     params.forEach(p => defined.add("variable:" + p));
                 }
 
-                // class def
                 let classMatch = line.match(/^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]/);
                 if (classMatch) defined.add("class:" + classMatch[1]);
 
-                // for loop variables
                 let forMatch = line.match(/^for\s+([a-zA-Z_][a-zA-Z0-9_]*)(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*\s+in\s+/);
                 if (forMatch) {
                     let vars = forMatch[0].slice(4, forMatch[0].indexOf(" in")).split(",").map(v => v.trim());
@@ -779,17 +816,15 @@ greet("Alice")`;
                     char === '"' || char === "'" ||
                     ((char === "f" || char === "F") && (code[i + 1] === '"' || code[i + 1] === "'" || code.slice(i + 1, i + 3) === '"""' || code.slice(i + 1, i + 3) === "'''"))
                 ) {
-                    let start = i; // start of the full string token
+                    let start = i;
                     let isFstring = false;
 
-                    // detect f-string
                     if (char === "f" || char === "F") {
                         isFstring = true;
                         i++;
                         char = code[i];
                     }
 
-                    // detect triple quote
                     let quote = char;
                     let triple = false;
                     if (code.slice(i, i + 3) === quote.repeat(3)) {
@@ -802,27 +837,23 @@ greet("Alice")`;
                     let buffer = "";
                     while (i < code.length) {
                         if (code[i] === "\\") {
-                            buffer += code.slice(i, i + 2); // keep escape
+                            buffer += code.slice(i, i + 2);
                             i += 2;
                             continue;
                         }
 
-                        // end of string
                         if ((!triple && code[i] === quote) || (triple && code.slice(i, i + 3) === quote.repeat(3))) {
                             i += triple ? 3 : 1;
                             break;
                         }
 
-                        // f-string embedded code { ... }
                         if (isFstring && code[i] === "{") {
-                            // flush collected text so far
                             if (buffer.length > 0) {
-                                tokens.push(["string", code.slice(start, i)]); // include opening f" and text up to {
+                                tokens.push(["string", code.slice(start, i)]);
                                 buffer = "";
-                                start = i; // reset start for next piece
+                                start = i;
                             }
 
-                            // handle code inside braces
                             let braceDepth = 1;
                             let exprStart = ++i;
                             while (i < code.length && braceDepth > 0) {
@@ -836,15 +867,13 @@ greet("Alice")`;
                             tokens.push(...tokenizePython(expr, definedVars));
                             tokens.push(["symbol", "}"]);
 
-                            start = i; // next string piece starts after closing }
+                            start = i;
                             continue;
                         }
 
                         buffer += code[i];
                         i++;
                     }
-
-                    // push remaining string part (including quotes if no f-string braces)
                     if (start < i) {
                         tokens.push(["string", code.slice(start, i)]);
                     }
@@ -864,16 +893,16 @@ greet("Alice")`;
                     let word = code.slice(start, i);
                     let j = i;
                     while (j < code.length && (code[j] === ' ' || code[j] == '\t')) j++;
-                    if (builtInFunctions.includes(word) || definedVars.has("function:" + word)) {
-                        tokens.push(["function", word]);
+                    if (definedVars.has("variable:" + word)) {
+                        tokens.push(["variable", word]);
                     } else if (keywords.includes(word)) {
                         if (logicKeywords.includes(word)) tokens.push(["logic", word]);
                         else if (["return", "continue", "break"].includes(word)) tokens.push(["control", word]);
                         else tokens.push(["keyword", word]);
                     } else if (booleans.includes(word)) {
                         tokens.push(["boolean", word]);
-                    } else if (definedVars.has("variable:" + word)) {
-                        tokens.push(["variable", word]);
+                    } else if (builtInFunctions.includes(word) || definedVars.has("function:" + word)) {
+                        tokens.push(["function", word]);
                     } else {
                         let nextChar = code[i];
                         if (/\W/.test(nextChar)) {
@@ -934,6 +963,10 @@ greet("Alice")`;
                     highlightLayer.appendChild(ghostLine.cloneNode());
                 }
             });
+
+            highlightLayer.style.top = `-${textarea.scrollTop}px`;
+            highlightLayer.style.left = `-${textarea.scrollLeft}px`;
+            gutter.scrollTop = textarea.scrollTop;
         }
 
         textarea.addEventListener("input", updateHighlight);
@@ -942,6 +975,10 @@ greet("Alice")`;
             highlightLayer.style.top = `-${textarea.scrollTop}px`;
             highlightLayer.style.left = `-${textarea.scrollLeft}px`;
             gutter.scrollTop = textarea.scrollTop;
+        });
+
+        outputArea.addEventListener("scroll", () => {
+            gutterOutput.scrollTop = outputArea.scrollTop;
         });
 
         textarea.addEventListener("keydown", e => {
@@ -973,7 +1010,6 @@ greet("Alice")`;
                 const value = textarea.value;
 
                 if (start !== end) {
-                    // Multi-line selection → indent/outdent whole lines
                     const lineStart = value.lastIndexOf("\n", start - 1) + 1;
                     const lineEnd = value.indexOf("\n", end);
                     const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
@@ -981,20 +1017,17 @@ greet("Alice")`;
                     const lines = selectedText.split("\n");
 
                     if (e.shiftKey) {
-                        // Outdent
                         const outdented = lines.map(line => line.startsWith(tabChar) ? line.slice(tabChar.length) : line);
                         textarea.value = value.slice(0, lineStart) + outdented.join("\n") + value.slice(selectionEnd);
                         textarea.selectionStart = start - tabChar.length;
                         textarea.selectionEnd = end - tabChar.length * lines.length;
                     } else {
-                        // Indent
                         const indented = lines.map(line => tabChar + line);
                         textarea.value = value.slice(0, lineStart) + indented.join("\n") + value.slice(selectionEnd);
                         textarea.selectionStart = start + tabChar.length;
                         textarea.selectionEnd = end + tabChar.length * lines.length;
                     }
                 } else {
-                    // Single cursor → insert tab at cursor
                     textarea.value = value.slice(0, start) + tabChar + value.slice(end);
                     textarea.selectionStart = textarea.selectionEnd = start + tabChar.length;
                 }
@@ -1056,7 +1089,6 @@ greet("Alice")`;
                     return;
                 }
 
-                // Handle closing over existing closing char
                 if (Object.values(pairs).includes(e.key)) {
                     if (value[start] === e.key) {
                         e.preventDefault();
@@ -1070,13 +1102,39 @@ greet("Alice")`;
 
         undoBtn.addEventListener('click', () => document.execCommand('undo'));
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
-        let running = false;
+        let socket = null;
+        let isRunning = false;
+
+        function setRunningState(running) {
+            const toolbarRight = document.querySelector(".toolbar-right");
+            document.getElementById("runButton").remove()
+
+            if (running) {
+                const stopBtn = document.createElement("button");
+                stopBtn.textContent = "Stop";
+                stopBtn.className = "button stop";
+                stopBtn.id = "runButton"
+                stopBtn.style.background = "#ef4444";
+                stopBtn.onclick = stopProgram;
+                toolbarRight.appendChild(stopBtn);
+            } else {
+                const runBtn = document.createElement("button");
+                runBtn.textContent = "Run";
+                runBtn.className = "button run";
+                runBtn.id = "runButton";
+                runBtn.onclick = run;
+                toolbarRight.appendChild(runBtn);
+            }
+        }
 
         function run() {
-            outputArea.textContent = ""; // clear output
-            outputLayer.innerHTML = ""
+            if (isRunning) return;
+            isRunning = true;
             gutterOutput.innerHTML = ""
-            const socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
+            setRunningState(true);
+
+            outputArea.textContent = "";
+            socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
 
             socket.onopen = () => {
                 const code = textarea.value;
@@ -1086,11 +1144,72 @@ greet("Alice")`;
             socket.onmessage = (event) => {
                 if (event.data === "__END__") {
                     socket.close();
+                    isRunning = false;
+                    setRunningState(false);
+                    return;
+                }
+
+                if (event.data.startsWith("__INPUT__")) {
+                    outputArea.scrollTop = outputArea.scrollHeight;
+                    gutterOutput.scrollTop = outputArea.scrollTop;
+
+                    const measureOutput = document.getElementById("measureOutput");
+                    measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+                    measureOutput.textContent = event.data || " ";
+                    const height = measureOutput.offsetHeight;
+                    const wraps = Math.ceil(height / 20);
+
+                    const numDiv = document.createElement("div");
+                    numDiv.className = "line-number";
+                    numDiv.textContent = getCurrentTime();
+                    gutterOutput.appendChild(numDiv);
+
+                    for (let w = 2; w < wraps; w++) {
+                        const ghostLine = document.createElement("div");
+                        ghostLine.className = "line-number blank";
+                        gutterOutput.appendChild(ghostLine);
+                    }
+                    const promptText = event.data.slice(9).replace(/\n$/, "");; // strip trailing newlines/spaces 
+                    const line = document.createElement("div"); // Use inline-flex to keep input next to text 
+
+                    line.style.display = "inline-flex";
+                    line.style.alignItems = "center"; // optional space between prompt and input 
+
+                    const spanPrompt = document.createElement("span");
+                    spanPrompt.textContent = promptText;
+
+                    line.appendChild(spanPrompt);
+
+                    const inputEl = document.createElement("input");
+
+                    inputEl.type = "text";
+                    inputEl.style.background = "transparent";
+                    inputEl.style.color = "white";
+                    inputEl.style.border = "none";
+                    inputEl.style.outline = "none";
+                    inputEl.style.fontFamily = "monospace";
+                    inputEl.style.fontSize = "14px";
+                    inputEl.style.width = "auto";
+                    inputEl.style.overflow = "visible"; // ensures no scroll
+
+                    line.appendChild(inputEl);
+                    outputArea.appendChild(line);
+                    inputEl.focus();
+
+                    inputEl.addEventListener("keydown", (e) => {
+                        if (e.key === "Enter") {
+                            const userInput = inputEl.value; // replace input with static text 
+                            line.removeChild(inputEl);
+                            outputArea.textContent += userInput + "\n";
+                            socket.send("__INPUT__" + userInput);
+
+                        }
+                    });
                     return;
                 }
                 outputArea.textContent += event.data;
                 outputArea.scrollTop = outputArea.scrollHeight;
-
 
                 const measureOutput = document.getElementById("measureOutput");
                 measureOutput.style.width = textarea.clientWidth - 20 + "px";
@@ -1109,14 +1228,57 @@ greet("Alice")`;
                     ghostLine.className = "line-number blank";
                     gutterOutput.appendChild(ghostLine);
                 }
-
             };
 
             socket.onerror = (err) => {
                 console.error("WebSocket error:", err);
                 outputArea.textContent += "\n[Error connecting to server]";
+                isRunning = false;
+                setRunningState(false);
+            };
+
+            socket.onclose = () => {
+                if (isRunning) {
+                    outputArea.textContent += "\n[Connection closed]";
+                }
+                isRunning = false;
+                setRunningState(false);
             };
         }
+
+        function stopProgram() {
+            if (socket) {
+                console.log("stop")
+                socket.send("__STOP__");
+                socket.close();
+                socket = null;
+            }
+            outputArea.textContent += "[Execution stopped by user]";
+            outputArea.scrollTop = outputArea.scrollHeight;
+
+            const measureOutput = document.getElementById("measureOutput");
+            measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+            measureOutput.textContent = event.data || " ";
+            const height = measureOutput.offsetHeight;
+            const wraps = Math.ceil(height / 20);
+
+            const numDiv = document.createElement("div");
+            numDiv.className = "line-number";
+            numDiv.textContent = getCurrentTime();
+            gutterOutput.appendChild(numDiv);
+
+            for (let w = 2; w < wraps; w++) {
+                const ghostLine = document.createElement("div");
+                ghostLine.className = "line-number blank";
+                gutterOutput.appendChild(ghostLine);
+            }
+            isRunning = false;
+            setRunningState(false);
+        }
+
+        setRunningState(false);
+        runBtn.addEventListener('click', run);
 
         function updateOutputGutter() {
             const code = outputArea.textContent;
@@ -1147,7 +1309,6 @@ greet("Alice")`;
         }
 
         window.addEventListener("resize", updateOutputGutter);
-        runBtn.addEventListener('click', run);
 
         updateHighlight();
         const openFileBtn = document.getElementById("openFileBtn");
@@ -1184,6 +1345,7 @@ greet("Alice")`;
         const channel = new BroadcastChannel("announcements");
         const lockOverlay = document.getElementById("lockOverlay");
         const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
+        console.log(timerDisplayToolbar)
         let ws = new WebSocket(SERVER_URL);
         let timerEnded = true
         ws.onmessage = (event) => {
@@ -1204,7 +1366,7 @@ greet("Alice")`;
                     updateHighlight();
                 } else if (msg.type === "timer") {
                     if (msg.clear || msg.remaining <= 0) {
-                        timerDisplayToolbar.display = "none";
+                        timerDisplayToolbar.style.display = "none";
                         timerDisplayToolbar.textContent = "";
                         if (!timerEnded) {
                             createAnnouncement("The timer has ended", 5000);
@@ -1244,6 +1406,12 @@ greet("Alice")`;
         function saveString() {
             let text = textarea.value;
             localStorage.setItem("savedText", text);
+        }
+        function stopRun() {
+
+            if (socket && isRunning) {
+                socket.send("__STOP__");
+            }
         }
 
         function loadString() {
