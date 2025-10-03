@@ -4,7 +4,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="google-adsense-account" content="ca-pub-9676048547393313">
-    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png"
+    <link rel="icon"
+        href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png"
         type="image/png">
     <title>Python Editor</title>
     <style>
@@ -1226,39 +1227,131 @@ greet("Alice")`;
         redoBtn.addEventListener('click', () => document.execCommand('redo'));
         let running = false;
         let socket = null;
-
+        let runDebounceTimeout = null;
         function run() {
 
             if (running) {
                 runBtn.style.backgroundColor = "#22c55e"
                 runBtn.textContent = "Run"
-                running = false
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     socket.send("__STOP__");
                     console.log("stop sent");
+                    socket.close();
+                    running = false
+                    socket = null;
+                    outputArea.textContent += "[Execution stopped by user]";
+                    outputArea.scrollTop = outputArea.scrollHeight;
+
+
+                    const measureOutput = document.getElementById("measureOutput");
+                    measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+                    measureOutput.textContent = "[Execution stopped by user]" || " ";
+                    const height = measureOutput.offsetHeight;
+                    const wraps = Math.ceil(height / 20);
+
+                    const numDiv = document.createElement("div");
+                    numDiv.className = "line-number";
+                    numDiv.textContent = getCurrentTime();
+                    gutterOutput.appendChild(numDiv);
+
+                    for (let w = 2; w < wraps; w++) {
+                        const ghostLine = document.createElement("div");
+                        ghostLine.className = "line-number blank";
+                        gutterOutput.appendChild(ghostLine);
+                    }
                 }
             } else {
-                outputArea.textContent = ""; // clear output
-                outputLayer.innerHTML = ""
-                gutterOutput.innerHTML = ""
-                socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
-                running = true
-
-                runBtn.style.backgroundColor = "#f54242"
-                runBtn.textContent = "Stop"
-                socket.onopen = () => {
-                    const code = textarea.value;
-                    socket.send(code);
-                };
-
-                socket.onmessage = (event) => {
-                    if (event.data === "__END__") {
+                if (runDebounceTimeout) return; // prevent multiple rapid clicks
+                runDebounceTimeout = setTimeout(() => {
+                    runDebounceTimeout = null;
+                    if (socket) {
                         socket.close();
-                        return;
+                        socket = null;
                     }
-                    if (event.data.startsWith("__INPUT__")) {
+                    outputArea.textContent = ""; // clear output
+                    outputLayer.innerHTML = ""
+                    gutterOutput.innerHTML = ""
+                    socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
+                    running = true
+
+                    runBtn.style.backgroundColor = "#f54242"
+                    runBtn.textContent = "Stop"
+                    socket.onopen = () => {
+                        const code = textarea.value;
+                        socket.send(code);
+
+                    };
+
+                    socket.onmessage = (event) => {
+                        if (event.data === "__END__") {
+                            socket.close();
+                            return;
+                        }
+                        if (event.data.startsWith("__INPUT__")) {
+                            outputArea.scrollTop = outputArea.scrollHeight;
+                            gutterOutput.scrollTop = outputArea.scrollTop;
+
+                            const measureOutput = document.getElementById("measureOutput");
+                            measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+                            measureOutput.textContent = event.data || " ";
+                            const height = measureOutput.offsetHeight;
+                            const wraps = Math.ceil(height / 20);
+
+                            const numDiv = document.createElement("div");
+                            numDiv.className = "line-number";
+                            numDiv.textContent = getCurrentTime();
+                            gutterOutput.appendChild(numDiv);
+
+                            for (let w = 2; w < wraps; w++) {
+                                const ghostLine = document.createElement("div");
+                                ghostLine.className = "line-number blank";
+                                gutterOutput.appendChild(ghostLine);
+                            }
+                            const promptText = event.data.slice(9).replace(/\n$/, "");; // strip trailing newlines/spaces 
+                            const line = document.createElement("div"); // Use inline-flex to keep input next to text 
+
+                            line.style.display = "inline-flex";
+                            line.style.alignItems = "center"; // optional space between prompt and input 
+
+                            const spanPrompt = document.createElement("span");
+                            spanPrompt.textContent = promptText;
+
+                            line.appendChild(spanPrompt);
+
+                            const inputEl = document.createElement("input");
+
+                            inputEl.type = "text";
+                            inputEl.style.background = "transparent";
+                            inputEl.style.color = "white";
+                            inputEl.style.border = "none";
+                            inputEl.style.outline = "none";
+                            inputEl.style.fontFamily = "monospace";
+                            inputEl.style.fontSize = "14px";
+                            inputEl.style.width = "1000px";
+                            inputEl.style.overflow = "hidden"; // ensures no scroll
+                            inputEl.style.textOverflow = "clip";
+                            inputEl.style.whiteSpace = "nowrap";
+
+                            line.appendChild(inputEl);
+                            outputArea.appendChild(line);
+                            inputEl.focus();
+
+                            inputEl.addEventListener("keydown", (e) => {
+                                if (e.key === "Enter") {
+                                    const userInput = inputEl.value; // replace input with static text 
+                                    line.removeChild(inputEl);
+                                    outputArea.textContent += userInput + "\n";
+                                    socket.send("__INPUT__" + userInput);
+
+                                }
+                            });
+                            return;
+                        }
+                        outputArea.textContent += event.data;
                         outputArea.scrollTop = outputArea.scrollHeight;
-                        gutterOutput.scrollTop = outputArea.scrollTop;
+
 
                         const measureOutput = document.getElementById("measureOutput");
                         measureOutput.style.width = textarea.clientWidth - 20 + "px";
@@ -1277,54 +1370,36 @@ greet("Alice")`;
                             ghostLine.className = "line-number blank";
                             gutterOutput.appendChild(ghostLine);
                         }
-                        const promptText = event.data.slice(9).replace(/\n$/, "");; // strip trailing newlines/spaces 
-                        const line = document.createElement("div"); // Use inline-flex to keep input next to text 
 
-                        line.style.display = "inline-flex";
-                        line.style.alignItems = "center"; // optional space between prompt and input 
+                    };
 
-                        const spanPrompt = document.createElement("span");
-                        spanPrompt.textContent = promptText;
+                    socket.onerror = (err) => {
+                        console.error("WebSocket error:", err);
+                        outputArea.textContent += "\n[Error connecting to server]";
+                    };
+                    socket.onclose = () => {
 
-                        line.appendChild(spanPrompt);
-
-                        const inputEl = document.createElement("input");
-
-                        inputEl.type = "text";
-                        inputEl.style.background = "transparent";
-                        inputEl.style.color = "white";
-                        inputEl.style.border = "none";
-                        inputEl.style.outline = "none";
-                        inputEl.style.fontFamily = "monospace";
-                        inputEl.style.fontSize = "14px";
-                        inputEl.style.width = "1000px";
-                        inputEl.style.overflow = "hidden"; // ensures no scroll
-                        inputEl.style.textOverflow = "clip";
-                        inputEl.style.whiteSpace = "nowrap";
-
-                        line.appendChild(inputEl);
-                        outputArea.appendChild(line);
-                        inputEl.focus();
-
-                        inputEl.addEventListener("keydown", (e) => {
-                            if (e.key === "Enter") {
-                                const userInput = inputEl.value; // replace input with static text 
-                                line.removeChild(inputEl);
-                                outputArea.textContent += userInput + "\n";
-                                socket.send("__INPUT__" + userInput);
-
-                            }
-                        });
-                        return;
+                        runBtn.style.backgroundColor = "#22c55e"
+                        runBtn.textContent = "Run"
+                        running = false
                     }
-                    outputArea.textContent += event.data;
-                    outputArea.scrollTop = outputArea.scrollHeight;
+                }, 300);
+            }
+        }
 
 
-                    const measureOutput = document.getElementById("measureOutput");
-                    measureOutput.style.width = textarea.clientWidth - 20 + "px";
+            function updateOutputGutter() {
+                const code = outputArea.textContent;
 
-                    measureOutput.textContent = event.data || " ";
+                const lines = code.split("\n");
+                lines.pop()
+                gutterOutput.innerHTML = ""
+
+                const measureOutput = document.getElementById("measureOutput");
+                measureOutput.style.width = textarea.clientWidth - 20 + "px";
+
+                lines.forEach((line, i) => {
+                    measureOutput.textContent = line || " ";
                     const height = measureOutput.offsetHeight;
                     const wraps = Math.ceil(height / 20);
 
@@ -1338,162 +1413,142 @@ greet("Alice")`;
                         ghostLine.className = "line-number blank";
                         gutterOutput.appendChild(ghostLine);
                     }
-
-                };
-
-                socket.onerror = (err) => {
-                    console.error("WebSocket error:", err);
-                    outputArea.textContent += "\n[Error connecting to server]";
-                };
-                socket.onclose = () => {
-
-                    runBtn.style.backgroundColor = "#22c55e"
-                    runBtn.textContent = "Run"
-                    running = false
-                }
+                });
             }
-        }
 
-        function updateOutputGutter() {
-            const code = outputArea.textContent;
+            window.addEventListener("resize", updateOutputGutter);
+            function debounce(func, wait) {
+                let timeout;
+                return function (...args) {
+                    const later = () => {
+                        timeout = null;
+                        func.apply(this, args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
 
-            const lines = code.split("\n");
-            lines.pop()
-            gutterOutput.innerHTML = ""
+            // Wrap the original run function with debounce
+            const runDebounced = debounce(run, 300); // 300ms debounce
+            runBtn.addEventListener('click', runDebounced);
 
-            const measureOutput = document.getElementById("measureOutput");
-            measureOutput.style.width = textarea.clientWidth - 20 + "px";
 
-            lines.forEach((line, i) => {
-                measureOutput.textContent = line || " ";
-                const height = measureOutput.offsetHeight;
-                const wraps = Math.ceil(height / 20);
+            updateHighlight();
+            const openFileBtn = document.getElementById("openFileBtn");
+            const fileInput = document.getElementById("fileInput");
 
-                const numDiv = document.createElement("div");
-                numDiv.className = "line-number";
-                numDiv.textContent = getCurrentTime();
-                gutterOutput.appendChild(numDiv);
 
-                for (let w = 2; w < wraps; w++) {
-                    const ghostLine = document.createElement("div");
-                    ghostLine.className = "line-number blank";
-                    gutterOutput.appendChild(ghostLine);
-                }
+            outputArea.addEventListener("scroll", () => {
+                gutterOutput.scrollTop = outputArea.scrollTop;
             });
-        }
 
-        window.addEventListener("resize", updateOutputGutter);
-        runBtn.addEventListener('click', run);
 
-        updateHighlight();
-        const openFileBtn = document.getElementById("openFileBtn");
-        const fileInput = document.getElementById("fileInput");
+            openFileBtn.addEventListener("click", () => {
+                fileInput.click();
+            });
 
-        openFileBtn.addEventListener("click", () => {
-            fileInput.click();
-        });
+            fileInput.addEventListener("change", () => {
+                const file = fileInput.files[0];
+                if (!file) return;
 
-        fileInput.addEventListener("change", () => {
-            const file = fileInput.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = e => {
-                textarea.value = e.target.result;
-                updateHighlight();
-            };
-            reader.readAsText(file);
-        });
-        const saveFileBtn = document.getElementById("saveFileBtn");
-
-        saveFileBtn.addEventListener("click", () => {
-            const textToSave = textarea.value;
-            const blob = new Blob([textToSave], { type: "text/plain" });
-
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "code.py";
-            link.click();
-
-            URL.revokeObjectURL(link.href);
-        });
-        const channel = new BroadcastChannel("announcements");
-        const lockOverlay = document.getElementById("lockOverlay");
-        const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
-        let ws = new WebSocket(SERVER_URL);
-        let timerEnded = true
-        ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            if (msg.from === "dashboard") {
-                if (msg.type === "announcement") {
-                    createAnnouncement(msg.text, max(msg.length * 1000, 10000));
-                } else if (msg.type === "lock") {
-                    textarea.disabled = msg.locked;
-                    lockOverlay.style.display = msg.locked ? "block" : "none";
-                    createAnnouncement(msg.locked ? "Editor locked" : "Editor unlocked", 3000);
-                } else if (msg.type === "starter") {
-                    textarea.value = msg.code;
+                const reader = new FileReader();
+                reader.onload = e => {
+                    textarea.value = e.target.result;
                     updateHighlight();
-                } else if (msg.type === "clearCode") {
-                    textarea.value = "";
-                    updateHighlight();
-                } else if (msg.type === "timer") {
-                    if (msg.clear || msg.remaining <= 0) {
-                        timerDisplayToolbar.display = "none";
-                        timerDisplayToolbar.textContent = "";
-                        if (!timerEnded) {
-                            createAnnouncement("The timer has ended", 5000);
-                            timerEnded = true
+                };
+                reader.readAsText(file);
+            });
+            const saveFileBtn = document.getElementById("saveFileBtn");
+
+            saveFileBtn.addEventListener("click", () => {
+                const textToSave = textarea.value;
+                const blob = new Blob([textToSave], { type: "text/plain" });
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "code.py";
+                link.click();
+
+                URL.revokeObjectURL(link.href);
+            });
+            const channel = new BroadcastChannel("announcements");
+            const lockOverlay = document.getElementById("lockOverlay");
+            const timerDisplayToolbar = document.getElementById("timerDisplayToolbar");
+            let ws = new WebSocket(SERVER_URL);
+            let timerEnded = true
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.from === "dashboard") {
+                    if (msg.type === "announcement") {
+                        createAnnouncement(msg.text, max(msg.length * 1000, 10000));
+                    } else if (msg.type === "lock") {
+                        textarea.disabled = msg.locked;
+                        lockOverlay.style.display = msg.locked ? "block" : "none";
+                        createAnnouncement(msg.locked ? "Editor locked" : "Editor unlocked", 3000);
+                    } else if (msg.type === "starter") {
+                        textarea.value = msg.code;
+                        updateHighlight();
+                    } else if (msg.type === "clearCode") {
+                        textarea.value = "";
+                        updateHighlight();
+                    } else if (msg.type === "timer") {
+                        if (msg.clear || msg.remaining <= 0) {
+                            timerDisplayToolbar.display = "none";
+                            timerDisplayToolbar.textContent = "";
+                            if (!timerEnded) {
+                                createAnnouncement("The timer has ended", 5000);
+                                timerEnded = true
+                            }
+                        } else {
+                            timerEnded = false
+                            timerDisplayToolbar.style = "margin-right: 10px; color: #ffffff; font-family: monospace; font-weight: bold; min-width: 80px; text-align: right; font-size: 120%; display: block;"
+                            timerDisplayToolbar.textContent = formatTime(msg.remaining);
                         }
-                    } else {
-                        timerEnded = false
-                        timerDisplayToolbar.style = "margin-right: 10px; color: #ffffff; font-family: monospace; font-weight: bold; min-width: 80px; text-align: right; font-size: 120%; display: block;"
-                        timerDisplayToolbar.textContent = formatTime(msg.remaining);
                     }
                 }
+            };
+
+            function max(a, b) {
+                if (a) return a
+                return b
             }
-        };
 
-        function max(a, b) {
-            if (a) return a
-            return b
-        }
+            function formatTime(sec) {
+                const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+                const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+                const s = (sec % 60).toString().padStart(2, '0');
 
-        function formatTime(sec) {
-            const h = Math.floor(sec / 3600).toString().padStart(2, '0');
-            const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
-            const s = (sec % 60).toString().padStart(2, '0');
-
-            return `${h}:${m}:${s}`;
-        }
-
-
-        function getCurrentTime() {
-            const now = new Date();
-            const h = now.getHours().toString().padStart(2, '0');
-            const m = now.getMinutes().toString().padStart(2, '0');
-            const s = now.getSeconds().toString().padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-
-        function saveString() {
-            let text = textarea.value;
-            localStorage.setItem("savedText", text);
-        }
-
-        function loadString() {
-            let saved = localStorage.getItem("savedText");
-            if (saved) {
-                textarea.value = saved;
-                updateHighlight();
+                return `${h}:${m}:${s}`;
             }
-        }
 
 
-        window.addEventListener("load", loadString);
+            function getCurrentTime() {
+                const now = new Date();
+                const h = now.getHours().toString().padStart(2, '0');
+                const m = now.getMinutes().toString().padStart(2, '0');
+                const s = now.getSeconds().toString().padStart(2, '0');
+                return `${h}:${m}:${s}`;
+            }
 
-        window.addEventListener("beforeunload", saveString);
-        loadString()
+            function saveString() {
+                let text = textarea.value;
+                localStorage.setItem("savedText", text);
+            }
+
+            function loadString() {
+                let saved = localStorage.getItem("savedText");
+                if (saved) {
+                    textarea.value = saved;
+                    updateHighlight();
+                }
+            }
+
+
+            window.addEventListener("load", loadString);
+
+            window.addEventListener("beforeunload", saveString);
+            loadString()
     </script>
 </body>
 
