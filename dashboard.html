@@ -6,7 +6,9 @@
 </head>
 <body>
     <h2>Login</h2>
-    <form method="post" action="https://sepaled-miller-nonvigilantly.ngrok-free.app/login">
+    <div id="message"></div>
+
+    <form id="loginForm">
         <label for="username">Username:</label>
         <input type="text" id="username" name="username" required><br><br>
 
@@ -15,5 +17,26 @@
 
         <button type="submit">Login</button>
     </form>
+
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", async function(e) {
+            e.preventDefault(); // stop default redirect
+
+            const formData = new FormData(this);
+            const response = await fetch("/login", {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                // If login succeeded, replace page with dashboard.html
+                const dashboard = await fetch("/static/dashboard.html");
+                document.body.innerHTML = await dashboard.text();
+            } else {
+                // Show error message
+                document.getElementById("message").innerHTML = "Invalid credentials!";
+            }
+        });
+    </script>
 </body>
 </html>
