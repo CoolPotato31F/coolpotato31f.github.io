@@ -125,7 +125,6 @@
 
         .output-area,
         .output-layer,
-        .output-area input,
         .highlight-layer,
         .textarea-layer {
             position: absolute;
@@ -1295,9 +1294,11 @@ greet("Alice")`;
                         outputArea.scrollTop = outputArea.scrollHeight;
                         gutterOutput.scrollTop = outputArea.scrollTop;
                         const measureOutput = document.getElementById("measureOutput");
+
                         measureOutput.style.width = outputArea.clientWidth - 20 + "px";
 
-                        measureOutput.textContent = event.data || " ";
+                        measureOutput.textContent = event.data.replace("__INPUT__", "") || " ";
+                        console.log(event.data.replace("__INPUT__", ""))
                         const height = measureOutput.offsetHeight;
                         const wraps = Math.ceil(height / 20);
 
@@ -1312,16 +1313,16 @@ greet("Alice")`;
                             gutterOutput.appendChild(ghostLine);
                         }
                         const promptText = event.data.slice(9).replace(/\n$/, "");; // strip trailing newlines/spaces 
-                        const line = document.createElement("div"); // Use inline-flex to keep input next to text 
-
+                        const line = document.createElement("span"); // use span instead of div
                         line.style.display = "inline-flex";
-                        line.style.alignItems = "center"; // optional space between prompt and input 
+                        line.style.alignItems = "center";
+                        line.style.verticalAlign = "middle"; // keeps alignment inline
 
                         const spanPrompt = document.createElement("span");
                         spanPrompt.textContent = promptText;
 
                         line.appendChild(spanPrompt);
-
+                        console.log(spanPrompt.offsetWidth)
                         const inputEl = document.createElement("input");
 
                         inputEl.type = "text";
@@ -1331,12 +1332,13 @@ greet("Alice")`;
                         inputEl.style.outline = "none";
                         inputEl.style.fontFamily = "monospace";
                         inputEl.style.fontSize = "14px";
-                        inputEl.style.width = "1000px";
+                        inputEl.style.height = "20px"
                         inputEl.style.overflow = "hidden"; // ensures no scroll
                         inputEl.style.textOverflow = "clip";
                         inputEl.style.whiteSpace = "nowrap";
-                        outputArea.style.position = "relative";
                         inputEl.className = "output-input";
+                        inputEl.style.padding = "0px 0px"
+                        inputEl.style.width = "400px";
 
                         line.appendChild(inputEl);
                         outputArea.appendChild(line);
