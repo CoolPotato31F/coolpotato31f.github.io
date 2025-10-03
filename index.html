@@ -4,6 +4,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="google-adsense-account" content="ca-pub-9676048547393313">
+    <link rel="icon" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6ZMz1hjBcRWGS-Jg8kcHK2eJI_p4aRp_NZw&s"
+        type="image/png">
     <title>Python Editor</title>
     <style>
         body {
@@ -526,6 +528,30 @@
     </div>
 
     <script>
+
+        const MODULES = {
+            math: {
+                functions: [
+                    "acos", "acosh", "asin", "asinh", "atan", "atan2", "atanh", "ceil", "comb", "copysign",
+                    "cos", "cosh", "degrees", "dist", "erf", "erfc", "exp", "expm1", "fabs", "factorial",
+                    "floor", "fmod", "frexp", "fsum", "gamma", "gcd", "hypot", "isclose", "isfinite",
+                    "isinf", "isnan", "isqrt", "lcm", "ldexp", "lgamma", "log", "log10", "log1p", "log2",
+                    "perm", "pow", "prod", "radians", "remainder", "sin", "sinh", "sqrt", "tan", "tanh",
+                    "trunc"
+                ],
+                constants: ["pi", "e", "tau", "inf", "nan"]
+            },
+            time: {
+                functions: [
+                    "asctime", "ctime", "gmtime", "localtime", "mktime", "monotonic", "perf_counter",
+                    "process_time", "sleep", "strftime", "strptime", "time"
+                ],
+                constants: []
+            }
+        };
+
+
+
         const textarea = document.getElementById("editor");
         const highlightLayer = document.getElementById("highlight");
         const gutter = document.getElementById("gutter");
@@ -757,24 +783,41 @@ greet("Alice")`;
                 }
 
                 // imports (only math + time)
-                let importMatch = line.match(/^import\s+([a-zA-Z_][a-zA-Z0-9_]*)(\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/);
+                let importMatch = line.match(/^import\s+(.+)/);
                 if (importMatch) {
-                    let lib = importMatch[1];
-                    let alias = importMatch[3] || lib;
-                    if (["math", "time"].includes(lib)) defined.add("module:" + alias);
+                    let parts = importMatch[1].split(",");
+                    parts.forEach(part => {
+                        part = part.trim();
+                        let subMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)(\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/);
+                        if (subMatch) {
+                            let lib = subMatch[1];
+                            let alias = subMatch[3] || lib;
+                            if (MODULES[lib]) {
+                                defined.add("module:" + alias);
+                                MODULES[lib].functions.forEach(fn => defined.add("function:" + fn));
+                                MODULES[lib].constants.forEach(c => defined.add("constant:" + c));
+                            }
+                        }
+                    });
                 }
 
-                let fromImportMatch = line.match(/^from\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+import\s+(.*)/);
+                // from ... import ...
+                let fromImportMatch = line.match(/^from\s+([a-zA-Z_][a-zA-Z0-9_]*?)\s+import\s+(.*)/);
                 if (fromImportMatch) {
                     let lib = fromImportMatch[1];
-                    if (["math", "time"].includes(lib)) {
+                    if (MODULES[lib]) {
                         let funcs = fromImportMatch[2].split(",").map(f => f.trim());
                         if (funcs.includes("*")) {
-                            defined.add("function:*:" + lib); // wildcard import
+                            defined.add("function:*:" + lib);
+                            defined.add("constant:*:" + lib);
                         } else {
                             funcs.forEach(fn => {
-                                let name = fn.split(" as ")[0];
-                                defined.add("function:" + name);
+                                let [name, alias] = fn.split(" as ").map(s => s.trim());
+                                if (MODULES[lib].functions.includes(name)) {
+                                    defined.add("function:" + (alias || name));
+                                } else if (MODULES[lib].constants.includes(name)) {
+                                    defined.add("constant:" + (alias || name));
+                                }
                             });
                         }
                     }
@@ -803,7 +846,6 @@ greet("Alice")`;
         ];
 
         function tokenizePython(code, definedVars = new Set()) {
-            console.log(definedVars)
             const keywords = ["def", "if", "else", "elif", "for", "while", "return", "import", "from", "as", "class", "try", "except", "finally", "with", "lambda", "yield", "continue", "break", "in"];
             const logicKeywords = ["if", "else", "elif", "for", "while", "try", "except", "finally", "with"];
             const booleans = ["True", "False"];
@@ -930,7 +972,6 @@ greet("Alice")`;
                     let word = code.slice(start, i);
                     let j = i;
                     while (j < code.length && (code[j] === ' ' || code[j] == '\t')) j++;
-
                     if (definedVars.has("module:" + word)) {
                         tokens.push(["module", word]);
 
@@ -942,17 +983,12 @@ greet("Alice")`;
                             while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
                             let fnWord = code.slice(startFn, i);
 
-                            if (word === "math") {
-                                if (mathFunctions.includes(fnWord)) {
+                            let lib = word; // alias name
+                            if (MODULES[lib]) {
+                                if (MODULES[lib].functions.includes(fnWord)) {
                                     tokens.push(["function", fnWord]);
-                                } else if (mathConstants.includes(fnWord)) {
+                                } else if (MODULES[lib].constants.includes(fnWord)) {
                                     tokens.push(["constant", fnWord]);
-                                } else {
-                                    tokens.push(["misc", fnWord]);
-                                }
-                            } else if (word === "time") {
-                                if (timeFunctions.includes(fnWord)) {
-                                    tokens.push(["function", fnWord]);
                                 } else {
                                     tokens.push(["misc", fnWord]);
                                 }
@@ -965,11 +1001,23 @@ greet("Alice")`;
                     else if (definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     }
-                    // --- wildcard import case ---
+                    // --- direct constant import case ---
+                    else if (definedVars.has("constant:" + word)) {
+                        tokens.push(["constant", word]);
+                    }
+                    // --- wildcard import case (functions + constants) ---
                     else if (
                         (definedVars.has("function:*:math") && mathFunctions.includes(word)) ||
                         (definedVars.has("function:*:time") && timeFunctions.includes(word))
                     ) {
+                        tokens.push(["function", word]);
+                    } else if (
+                        (definedVars.has("constant:*:math") && mathConstants.includes(word))
+                    ) {
+                        tokens.push(["constant", word]);
+                    }
+                    // --- direct function import case ---
+                    else if (definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     }
                     // --- builtins and others ---
@@ -1380,7 +1428,6 @@ greet("Alice")`;
                 if (msg.type === "announcement") {
                     createAnnouncement(msg.text, max(msg.length * 1000, 10000));
                 } else if (msg.type === "lock") {
-                    console.log("hello")
                     textarea.disabled = msg.locked;
                     lockOverlay.style.display = msg.locked ? "block" : "none";
                     createAnnouncement(msg.locked ? "Editor locked" : "Editor unlocked", 3000);
