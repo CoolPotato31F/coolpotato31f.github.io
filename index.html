@@ -4,7 +4,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="google-adsense-account" content="ca-pub-9676048547393313">
-    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png"
+    <link rel="icon"
+        href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png"
         type="image/png">
     <title>Python Editor</title>
     <style>
@@ -161,6 +162,7 @@
             overflow: auto;
             padding: 5px 0px;
         }
+
         .output-area::-webkit-scrollbar,
         .textarea-layer::-webkit-scrollbar {
             width: 10px;
@@ -172,14 +174,13 @@
             border-radius: 5px;
         }
 
-        .output-area::-webkit-scrollbar-thumb, 
+        .output-area::-webkit-scrollbar-thumb,
         .textarea-layer::-webkit-scrollbar-thumb {
             background: #121824;
             border-radius: 5px;
         }
 
-        .output-area::-webkit-scrollbar-thumb:hover
-        .textarea-layer::-webkit-scrollbar-thumb:hover {
+        .output-area::-webkit-scrollbar-thumb:hover .textarea-layer::-webkit-scrollbar-thumb:hover {
             background: rgb(14, 20, 29);
         }
 
@@ -345,6 +346,22 @@
             background: #22c55e;
             width: 100%;
             transition: width linear;
+        }
+
+        .output-input {
+            position: absolute;
+            left: 5px;
+            /* match gutter alignment */
+            bottom: 0;
+            /* or wherever you want it */
+            background: #1e1e1e;
+            /* match your editor theme */
+            border: none;
+            color: white;
+            font-family: monospace;
+            font-size: 14px;
+            width: calc(100% - 10px);
+            outline: none;
         }
 
         @keyframes slideDown {
@@ -1265,7 +1282,7 @@ greet("Alice")`;
                     }
                 }
             } else {
-                if (socket){
+                if (socket) {
                     socket.close();
                     socket = null;
                 }
@@ -1280,7 +1297,7 @@ greet("Alice")`;
                 socket.onopen = () => {
                     const code = textarea.value;
                     socket.send(code);
-                    
+
                 };
 
                 socket.onmessage = (event) => {
@@ -1332,10 +1349,12 @@ greet("Alice")`;
                         inputEl.style.overflow = "hidden"; // ensures no scroll
                         inputEl.style.textOverflow = "clip";
                         inputEl.style.whiteSpace = "nowrap";
+                        outputArea.style.position = "relative";
+                        inputEl.className = "output-input";
 
                         line.appendChild(inputEl);
                         outputArea.appendChild(line);
-                        
+
                         outputArea.scrollLeft = 0;
                         inputEl.focus();
 
@@ -1348,7 +1367,7 @@ greet("Alice")`;
 
                             }
                         });
-                        
+
                         return;
                     }
                     outputArea.textContent += event.data;
@@ -1425,7 +1444,7 @@ greet("Alice")`;
         const openFileBtn = document.getElementById("openFileBtn");
         const fileInput = document.getElementById("fileInput");
 
-        
+
         outputArea.addEventListener("scroll", () => {
             gutterOutput.scrollTop = outputArea.scrollTop;
         });
