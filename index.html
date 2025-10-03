@@ -1291,9 +1291,8 @@ greet("Alice")`;
                     if (event.data.startsWith("__INPUT__")) {
                         outputArea.scrollTop = outputArea.scrollHeight;
                         gutterOutput.scrollTop = outputArea.scrollTop;
-
                         const measureOutput = document.getElementById("measureOutput");
-                        measureOutput.style.width = textarea.clientWidth - 20 + "px";
+                        measureOutput.style.width = outputArea.clientWidth - 20 + "px";
 
                         measureOutput.textContent = event.data || " ";
                         const height = measureOutput.offsetHeight;
@@ -1336,6 +1335,8 @@ greet("Alice")`;
 
                         line.appendChild(inputEl);
                         outputArea.appendChild(line);
+                        
+                        outputArea.scrollLeft = 0;
                         inputEl.focus();
 
                         inputEl.addEventListener("keydown", (e) => {
@@ -1347,6 +1348,7 @@ greet("Alice")`;
 
                             }
                         });
+                        
                         return;
                     }
                     outputArea.textContent += event.data;
