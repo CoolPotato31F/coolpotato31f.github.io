@@ -124,6 +124,7 @@
 
         .output-area,
         .output-layer,
+        .output-area input,
         .highlight-layer,
         .textarea-layer {
             position: absolute;
@@ -346,22 +347,6 @@
             background: #22c55e;
             width: 100%;
             transition: width linear;
-        }
-
-        .output-input {
-            position: absolute;
-            left: 5px;
-            /* match gutter alignment */
-            bottom: 0;
-            /* or wherever you want it */
-            background: #1e1e1e;
-            /* match your editor theme */
-            border: none;
-            color: white;
-            font-family: monospace;
-            font-size: 14px;
-            width: calc(100% - 10px);
-            outline: none;
         }
 
         @keyframes slideDown {
