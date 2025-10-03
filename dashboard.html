@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Editor Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #0f1724;
+      color: white;
+      display: flex;
+      height: 100vh;
+    }
+
+    .sidebar {
+      width: 30%;
+      background: #1e293b;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .sidebar h2 {
+      margin: 0;
+      font-size: 18px;
+      text-align: center;
+      align-items: center;
+      color: #ffffff;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      text-align: center;
+      align-items: center;
+      color: #ffffff;
+    }
+
+    .container {
+      flex: 1;
+      background: #1e293b;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: #334155;
+      padding: 15px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    textarea {
+      width: calc(100% - 20px);
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      height: 100%;
+      background: #0f1724;
+      color: white;
+
+      resize: none;
+    }
+
+    input[type=number] {
+      width: 60px;
+      padding: 5px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      background: #0f1724;
+      color: white;
+      text-align: center;
+    }
+
+    .timer-inputs {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    .timer-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .timer-buttons button {
+      flex: 1;
+    }
+
+    #dashboardTimerDisplay {
+      font-size: 20px;
+      font-family: monospace;
+      text-align: center;
+      color: #ffffff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar">
+    <h2>Starter Code</h2>
+    <textarea id="starterCode" class="startcode" placeholder="Enter starter code here..." rows="10"></textarea>
+    <button id="sendStarterBtn">Send to Everyone</button>
+    <button id="clearEveryoneBtn">Clear Everyone's Code</button>
+  </div>
+
+  <div class="container">
+    <h2>Send Announcement</h2>
+    <textarea id="message" placeholder="Type your announcement here..." rows="4"></textarea>
+    <button id="sendBtn">Send to Editor</button>
+    <input id="announcementLength" type="number" min="0" placeholder="length" style="align-self: center;">
+    <button id="lockBtn">Lock Editor</button>
+
+    <h2>Countdown Timer</h2>
+    <div class="timer-inputs">
+      <input id="hoursInput" type="number" min="0" placeholder="hh">
+      <input id="minutesInput" type="number" min="0" max="59" placeholder="mm">
+      <input id="secondsInput" type="number" min="0" max="59" placeholder="ss">
+    </div>
+    <div style="margin-top:5px; font-size:18px; text-align:center;" id="dashboardTimerDisplay">00:00:00</div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button id="startTimerBtn">Start</button>
+      <button id="stopTimerBtn">Stop</button>
+      <button id="clearTimerBtn">Clear</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+      <h2>Manage Sessions</h2>
+
+      <!-- Running Programs -->
+      <div class="card">
+        <h3>Running Programs:</h3>
+        <ul id="runningPrograms" style="list-style:none; padding:0; max-height:150px; overflow-y:auto;"></ul>
+        <button id="endAllProgramsBtn">End All Programs</button>
+      </div>
+
+      <!-- Connected People -->
+      <div class="card">
+        <h3>Connected People:</h3>
+        <ul id="connectedPeople" style="list-style:none; padding:0; max-height:150px; overflow-y:auto;"></ul>
+        <button id="disconnectAllBtn">Disconnect All</button>
+      </div>
+
+      <!-- Code Blocking -->
+      <div class="card">
+        <button id="blockCodeBtn">Block Incoming Code</button>
+      </div>
+  </div>
+  <script>
+    const SERVER_URL = "wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/dashboard";
+    const socket = new WebSocket(SERVER_URL);
+    socket.onopen = () => console.log("Dashboard connected to WS");
+    socket.onmessage = (event) => {
+      console.log(event.data)
+    }
+    // ----------------- Announcements -----------------
+    const messageBox = document.getElementById("message");
+    const lengthInput = document.getElementById("announcementLength");
+    const sendBtn = document.getElementById("sendBtn");
+
+    sendBtn.addEventListener("click", sendAnnouncement);
+    messageBox.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendAnnouncement();
+      }
+    });
+
+    function sendAnnouncement() {
+      const msg = messageBox.value.trim();
+      if (!msg) return;
+      socket.send(JSON.stringify({
+        type: "announcement",
+        text: msg,
+        length: lengthInput.value,
+        from: "dashboard",
+        class: "client"
+      }));
+      messageBox.value = "";
+    }
+
+    // ----------------- Lock Editor -----------------
+    const lockBtn = document.getElementById("lockBtn");
+    let isLocked = false;
+    lockBtn.addEventListener("click", () => {
+      isLocked = !isLocked;
+      lockBtn.textContent = isLocked ? "Unlock Editor" : "Lock Editor";
+      socket.send(JSON.stringify({ type: "lock", locked: isLocked, from: "dashboard", class: "server" }));
+    });
+
+    // ----------------- Timer -----------------
+    const hoursInput = document.getElementById("hoursInput");
+    const minutesInput = document.getElementById("minutesInput");
+    const secondsInput = document.getElementById("secondsInput");
+    const startTimerBtn = document.getElementById("startTimerBtn");
+    const stopTimerBtn = document.getElementById("stopTimerBtn");
+    const clearTimerBtn = document.getElementById("clearTimerBtn");
+    const dashboardTimerDisplay = document.getElementById("dashboardTimerDisplay");
+
+    let timerInterval = null;
+    let remainingSeconds = 0;
+
+    function parseInputs() {
+      let h = parseInt(hoursInput.value) || 0;
+      let m = parseInt(minutesInput.value) || 0;
+      let s = parseInt(secondsInput.value) || 0;
+      if (m > 59) m = 59;
+      if (s > 59) s = 59;
+      return h * 3600 + m * 60 + s;
+    }
+
+    function formatTime(sec) {
+      const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+      const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function broadcastTimer(clear = false) {
+      socket.send(JSON.stringify({ type: "timer", remaining: remainingSeconds, from: "dashboard", clear, class: "client" }));
+    }
+
+    function updateDisplay() { dashboardTimerDisplay.textContent = formatTime(remainingSeconds); }
+
+    function startTimer() {
+      remainingSeconds = parseInputs();
+      if (remainingSeconds <= 0) return;
+      updateDisplay();
+      broadcastTimer();
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        updateDisplay();
+        broadcastTimer();
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          broadcastTimer(true);
+          updateDisplay();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() { if (timerInterval) clearInterval(timerInterval); updateDisplay(); broadcastTimer(); }
+    function clearTimer() { if (timerInterval) clearInterval(timerInterval); remainingSeconds = 0; updateDisplay(); broadcastTimer(true); }
+
+    startTimerBtn.addEventListener("click", startTimer);
+    stopTimerBtn.addEventListener("click", stopTimer);
+    clearTimerBtn.addEventListener("click", clearTimer);
+
+    // ----------------- Starter Code -----------------
+    const starterCode = document.getElementById("starterCode");
+    const sendStarterBtn = document.getElementById("sendStarterBtn");
+    const clearEveryoneBtn = document.getElementById("clearEveryoneBtn");
+
+    sendStarterBtn.addEventListener("click", () => {
+      const code = starterCode.value;
+      if (!code.trim()) return;
+      if (!confirm("Are you sure you want to send to everyone?")) return;
+      socket.send(JSON.stringify({ type: "starter", code, from: "dashboard", class: "client" }));
+    });
+
+    clearEveryoneBtn.addEventListener("click", () => {
+      if (confirm("Are you sure you want to clear everyone's code?")) {
+        socket.send(JSON.stringify({ type: "clearCode", from: "dashboard", class: "client" }));
+      }
+    });
+
+    // ----------------- Process & Clients Sidebar -----------------
+    const runningProgramsList = document.getElementById("runningPrograms");
+    const connectedPeopleList = document.getElementById("connectedPeople");
+    const endAllProgramsBtn = document.getElementById("endAllProgramsBtn");
+    const disconnectAllBtn = document.getElementById("disconnectAllBtn");
+    const blockCodeBtn = document.getElementById("blockCodeBtn");
+
+    let codeBlocked = false;
+
+    endAllProgramsBtn.addEventListener("click", () => {
+      if (confirm("Are you sure you want to end all running programs?")) {
+        try {
+          socket.send(JSON.stringify({ type: "endAllPrograms", from: "dashboard", class: "server" }));
+        } catch (error) {
+          alert(TypeError)
+        }
+      }
+    });
+
+    disconnectAllBtn.addEventListener("click", () => {
+      if (confirm("Are you sure you want to disconnect all connected people?")) {
+        try {
+          socket.send(JSON.stringify({ type: "disconnectAll", from: "dashboard", class: "server" }));
+        } catch (error) {
+          alert(TypeError)
+        }
+      }
+    });
+
+    blockCodeBtn.addEventListener("click", () => {
+      codeBlocked = !codeBlocked;
+      blockCodeBtn.textContent = codeBlocked ? "Unblock Incoming Code" : "Block Incoming Code";
+      try {
+        socket.send(JSON.stringify({ type: "blockCode", blocked: codeBlocked, from: "dashboard", class: "server" }));
+      } catch (error) {
+        alert(TypeError)
+      }
+    });
+
+    // ----------------- Handle server updates -----------------
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      runningProgramsList.textContent = data["programs"]
+      connectedPeopleList.textContent = data["editors"]
+    };
+  </script>
+</body>
+
+</html>
