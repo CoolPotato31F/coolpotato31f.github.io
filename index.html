@@ -964,10 +964,27 @@ greet("Alice")`;
                     }
 
                     continue;
-                }
+                    }
                 if (/[0-9]/.test(char)) {
                     let start = i;
-                    while (i < code.length && /[0-9.]/.test(code[i])) i++;
+                    let hasDot = false;
+                
+                    // First digit already matched
+                    while (i < code.length) {
+                        const c = code[i];
+                        if (/[0-9]/.test(c)) {
+                            i++;
+                        } else if (c === '.' && !hasDot) {
+                            hasDot = true;
+                            i++;
+                        } else if (c === '_' && /[0-9]/.test(code[i + 1])) {
+                            // Allow underscore only if followed by a digit
+                            i++;
+                        } else {
+                            break;
+                        }
+                    }
+                
                     tokens.push(["number", code.slice(start, i)]);
                     continue;
                 }
