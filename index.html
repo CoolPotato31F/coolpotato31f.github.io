@@ -138,9 +138,7 @@
             font-size: 14px;
             line-height: 20px;
             white-space: pre-wrap;
-            /* preserves spaces and line breaks */
             overflow-wrap: break-word;
-            /* wrap anywhere to prevent long lines */
         }
 
         .highlight-layer {
@@ -187,47 +185,39 @@
 
         .keyword {
             color: #4f9aff;
-            /* brighter, more saturated blue */
             font-weight: bold;
         }
 
         .logic {
             color: #d05cff;
-            /* vivid magenta */
             font-weight: bold;
         }
 
         .control {
             color: #ffd43b;
-            /* brighter yellow-gold */
             font-weight: bold;
         }
 
         .function {
             color: #f5e077;
-            /* unchanged */
         }
 
         .string {
             color: #ff6fae;
-            /* hot pink */
         }
 
         .number {
             color: #ffae42;
-            /* orange-gold */
         }
 
         .boolean {
             color: #1ee6ff;
-            /* cyan (brighter than before) */
             font-weight: bold;
         }
 
         .whitespace,
         .variable {
             color: #4ef5c8;
-            /* bright green */
         }
 
         .constant {
@@ -237,23 +227,19 @@
 
         .symbol {
             color: #e6ae35;
-            /* unchanged */
         }
 
         .module {
             color: #d19cff;
-            /* unchanged */
         }
 
         .comment {
             color: #2acb3f;
-            /* brighter green, easier to spot */
             font-style: italic;
         }
 
         .unknown {
             color: #ff5c5c;
-            /* stronger red */
             background-color: rgba(255, 0, 0, 0.15);
         }
 
@@ -663,7 +649,6 @@ greet("Alice")`;
             });
         }
 
-        // Load settings from localStorage
         function loadSettings() {
             const settings = JSON.parse(localStorage.getItem("editorSettings") || "{}");
 
@@ -707,8 +692,6 @@ greet("Alice")`;
         for (let key in colorInputs) {
             colorInputs[key].addEventListener("input", saveSettings);
         }
-
-        // Load settings on page load
         window.addEventListener("load", loadSettings);
 
         function createAnnouncement(message, duration = 5000) {
@@ -755,10 +738,9 @@ greet("Alice")`;
             const defined = new Set();
             const lines = code.split("\n");
         
-            // helper: extract all valid variable names from an assignment LHS
             function extractNames(lhs) {
                 const names = [];
-                lhs = lhs.replace(/[()\[\]]/g, " "); // remove tuple/array symbols
+                lhs = lhs.replace(/[()\[\]]/g, " ");
                 lhs.split(",").forEach(part => {
                     const name = part.trim();
                     if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
@@ -771,12 +753,9 @@ greet("Alice")`;
             for (let line of lines) {
                 line = line.trim();
         
-                // --- handle chained assignments like "a = b = c = 1"
                 if (/^[a-zA-Z_][a-zA-Z0-9_=\s,()\[\]]*=/.test(line)) {
-                    // split by '=' but keep the left parts before the last '='
                     const parts = line.split("=");
                     if (parts.length > 1) {
-                        // everything except the last RHS
                         const leftParts = parts.slice(0, -1);
                         for (const lhs of leftParts) {
                             const names = extractNames(lhs);
@@ -791,7 +770,6 @@ greet("Alice")`;
                     }
                 }
         
-                // --- function definition ---
                 let funcMatch = line.match(/^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/);
                 if (funcMatch) {
                     defined.add("function:" + funcMatch[1]);
@@ -799,18 +777,15 @@ greet("Alice")`;
                     params.forEach(p => defined.add("variable:" + p));
                 }
         
-                // --- class definition ---
                 let classMatch = line.match(/^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]?/);
                 if (classMatch) defined.add("class:" + classMatch[1]);
         
-                // --- for loop variables (e.g., for x, y in something:) ---
                 let forMatch = line.match(/^for\s+(.+?)\s+in\s+/);
                 if (forMatch) {
                     const names = extractNames(forMatch[1]);
                     names.forEach(name => defined.add("variable:" + name));
                 }
         
-                // --- import statements ---
                 let importMatch = line.match(/^import\s+(.+)/);
                 if (importMatch) {
                     let parts = importMatch[1].split(",");
@@ -829,7 +804,6 @@ greet("Alice")`;
                     });
                 }
         
-                // --- from ... import ... ---
                 let fromImportMatch = line.match(/^from\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+import\s+(.*)/);
                 if (fromImportMatch) {
                     let lib = fromImportMatch[1];
@@ -856,7 +830,6 @@ greet("Alice")`;
         }
 
 
-        // Built-in lists of math + time functions
         const mathFunctions = [
             "acos", "acosh", "asin", "asinh", "atan", "atan2", "atanh", "ceil", "comb", "copysign",
             "cos", "cosh", "degrees", "dist", "erf", "erfc", "exp", "expm1", "fabs", "factorial",
@@ -917,17 +890,15 @@ greet("Alice")`;
                     char === '"' || char === "'" ||
                     ((char === "f" || char === "F") && (code[i + 1] === '"' || code[i + 1] === "'" || code.slice(i + 1, i + 3) === '"""' || code.slice(i + 1, i + 3) === "'''"))
                 ) {
-                    let start = i; // start of the full string token
+                    let start = i;
                     let isFstring = false;
 
-                    // detect f-string
                     if (char === "f" || char === "F") {
                         isFstring = true;
                         i++;
                         char = code[i];
                     }
 
-                    // detect triple quote
                     let quote = char;
                     let triple = false;
                     if (code.slice(i, i + 3) === quote.repeat(3)) {
@@ -940,27 +911,23 @@ greet("Alice")`;
                     let buffer = "";
                     while (i < code.length) {
                         if (code[i] === "\\") {
-                            buffer += code.slice(i, i + 2); // keep escape
+                            buffer += code.slice(i, i + 2);
                             i += 2;
                             continue;
                         }
 
-                        // end of string
                         if ((!triple && code[i] === quote) || (triple && code.slice(i, i + 3) === quote.repeat(3))) {
                             i += triple ? 3 : 1;
                             break;
                         }
 
-                        // f-string embedded code { ... }
                         if (isFstring && code[i] === "{") {
-                            // flush collected text so far
                             if (buffer.length > 0) {
-                                tokens.push(["string", code.slice(start, i)]); // include opening f" and text up to {
+                                tokens.push(["string", code.slice(start, i)]);
                                 buffer = "";
-                                start = i; // reset start for next piece
+                                start = i;
                             }
 
-                            // handle code inside braces
                             let braceDepth = 1;
                             let exprStart = ++i;
                             while (i < code.length && braceDepth > 0) {
@@ -974,7 +941,7 @@ greet("Alice")`;
                             tokens.push(...tokenizePython(expr, definedVars));
                             tokens.push(["symbol", "}"]);
 
-                            start = i; // next string piece starts after closing }
+                            start = i;
                             continue;
                         }
 
@@ -982,7 +949,6 @@ greet("Alice")`;
                         i++;
                     }
 
-                    // push remaining string part (including quotes if no f-string braces)
                     if (start < i) {
                         tokens.push(["string", code.slice(start, i)]);
                     }
@@ -998,10 +964,8 @@ greet("Alice")`;
                         if (/[0-9]/.test(c)) {
                             i++;
                         } else if (c === "_" && /[0-9]/.test(code[i + 1])) {
-                            // allow underscores between digits
                             i++;
                         } else if (c === "." && !hasDot && /[0-9]/.test(code[i + 1])) {
-                            // allow one dot for floats
                             hasDot = true;
                             i++;
                         } else {
@@ -1023,7 +987,6 @@ greet("Alice")`;
                     if (definedVars.has("module:" + word)) {
                         tokens.push(["module", word]);
 
-                        // Look ahead for dot access
                         if (code[i] === ".") {
                             tokens.push(["symbol", "."]);
                             i++;
@@ -1031,7 +994,7 @@ greet("Alice")`;
                             while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
                             let fnWord = code.slice(startFn, i);
 
-                            let lib = word; // alias name
+                            let lib = word; 
                             if (MODULES[lib]) {
                                 if (MODULES[lib].functions.includes(fnWord)) {
                                     tokens.push(["function", fnWord]);
@@ -1045,15 +1008,12 @@ greet("Alice")`;
                             }
                         }
                     }
-                    // --- direct function import case ---
                     else if (definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     }
-                    // --- direct constant import case ---
                     else if (definedVars.has("constant:" + word)) {
                         tokens.push(["constant", word]);
                     }
-                    // --- wildcard import case (functions + constants) ---
                     else if (
                         (definedVars.has("function:*:math") && mathFunctions.includes(word)) ||
                         (definedVars.has("function:*:time") && timeFunctions.includes(word))
@@ -1064,11 +1024,9 @@ greet("Alice")`;
                     ) {
                         tokens.push(["constant", word]);
                     }
-                    // --- direct function import case ---
                     else if (definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     }
-                    // --- builtins and others ---
                     else if (builtInFunctions.includes(word)) {
                         tokens.push(["function", word]);
                     } else if (keywords.includes(word)) {
@@ -1175,7 +1133,6 @@ greet("Alice")`;
                 const value = textarea.value;
 
                 if (start !== end) {
-                    // Multi-line selection → indent/outdent whole lines
                     const lineStart = value.lastIndexOf("\n", start - 1) + 1;
                     const lineEnd = value.indexOf("\n", end);
                     const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
@@ -1183,20 +1140,17 @@ greet("Alice")`;
                     const lines = selectedText.split("\n");
 
                     if (e.shiftKey) {
-                        // Outdent
                         const outdented = lines.map(line => line.startsWith(tabChar) ? line.slice(tabChar.length) : line);
                         textarea.value = value.slice(0, lineStart) + outdented.join("\n") + value.slice(selectionEnd);
                         textarea.selectionStart = start - tabChar.length;
                         textarea.selectionEnd = end - tabChar.length * lines.length;
                     } else {
-                        // Indent
                         const indented = lines.map(line => tabChar + line);
                         textarea.value = value.slice(0, lineStart) + indented.join("\n") + value.slice(selectionEnd);
                         textarea.selectionStart = start + tabChar.length;
                         textarea.selectionEnd = end + tabChar.length * lines.length;
                     }
                 } else {
-                    // Single cursor → insert tab at cursor
                     textarea.value = value.slice(0, start) + tabChar + value.slice(end);
                     textarea.selectionStart = textarea.selectionEnd = start + tabChar.length;
                 }
@@ -1268,7 +1222,6 @@ greet("Alice")`;
                     return;
                 }
 
-                // Handle closing over existing closing char
                 if (Object.values(pairs).includes(e.key)) {
                     if (value[start] === e.key) {
                         e.preventDefault();
@@ -1286,17 +1239,14 @@ greet("Alice")`;
                     "'": "'",
                 };
             
-                // --- Handle opening pairs ---
                 if (pairs[e.key]) {
                     e.preventDefault();
                     const closing = pairs[e.key];
                     const nextChar = value[start];
             
-                    // If cursor is before the same closing char, just skip it
                     if (nextChar === closing) {
                         textarea.selectionStart = textarea.selectionEnd = start + 1;
                     } else {
-                        // Otherwise insert a full pair and move inside
                         textarea.value = value.slice(0, start) + e.key + closing + value.slice(end);
                         textarea.selectionStart = textarea.selectionEnd = start + 1;
                     }
@@ -1305,11 +1255,9 @@ greet("Alice")`;
                     return;
                 }
             
-                // --- Handle closing pairs (skip duplicates) ---
                 if (Object.values(pairs).includes(e.key)) {
                     const prevChar = value[start - 1];
                     const nextChar = value[start];
-                    // If next char is the same closing char, move over it instead of adding another
                     if (nextChar === e.key) {
                         e.preventDefault();
                         textarea.selectionStart = textarea.selectionEnd = start + 1;
@@ -1363,7 +1311,7 @@ greet("Alice")`;
                     socket.close();
                     socket = null;
                 }
-                outputArea.textContent = ""; // clear output
+                outputArea.textContent = "";
                 outputLayer.innerHTML = ""
                 gutterOutput.innerHTML = ""
                 socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
@@ -1404,11 +1352,11 @@ greet("Alice")`;
                             ghostLine.className = "line-number blank";
                             gutterOutput.appendChild(ghostLine);
                         }
-                        const promptText = event.data.slice(9).replace(/\n$/, "");; // strip trailing newlines/spaces 
-                        const line = document.createElement("span"); // use span instead of div
+                        const promptText = event.data.slice(9).replace(/\n$/, "");
+                        const line = document.createElement("span");
                         line.style.display = "inline-flex";
                         line.style.alignItems = "center";
-                        line.style.verticalAlign = "middle"; // keeps alignment inline
+                        line.style.verticalAlign = "middle";
 
                         const spanPrompt = document.createElement("span");
                         spanPrompt.textContent = promptText;
@@ -1425,7 +1373,7 @@ greet("Alice")`;
                         inputEl.style.fontFamily = "monospace";
                         inputEl.style.fontSize = "14px";
                         inputEl.style.height = "20px"
-                        inputEl.style.overflow = "hidden"; // ensures no scroll
+                        inputEl.style.overflow = "hidden";
                         inputEl.style.textOverflow = "clip";
                         inputEl.style.whiteSpace = "nowrap";
                         inputEl.className = "output-input";
@@ -1440,7 +1388,7 @@ greet("Alice")`;
 
                         inputEl.addEventListener("keydown", (e) => {
                             if (e.key === "Enter") {
-                                const userInput = inputEl.value; // replace input with static text 
+                                const userInput = inputEl.value; 
                                 line.removeChild(inputEl);
                                 outputArea.textContent += userInput + "\n";
                                 socket.send("__INPUT__" + userInput);
