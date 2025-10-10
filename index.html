@@ -967,10 +967,28 @@ greet("Alice")`;
                 }
                 if (/[0-9]/.test(char)) {
                     let start = i;
-                    while (i < code.length && /[0-9.]/.test(code[i])) i++;
+                    let hasDot = false;
+                
+                    while (i < code.length) {
+                        const c = code[i];
+                        if (/[0-9]/.test(c)) {
+                            i++;
+                        } else if (c === "_" && /[0-9]/.test(code[i + 1])) {
+                            // allow underscores between digits
+                            i++;
+                        } else if (c === "." && !hasDot && /[0-9]/.test(code[i + 1])) {
+                            // allow one dot for floats
+                            hasDot = true;
+                            i++;
+                        } else {
+                            break;
+                        }
+                    }
+                
                     tokens.push(["number", code.slice(start, i)]);
                     continue;
                 }
+
 
                 if (/[a-zA-Z_]/.test(char)) {
                     let start = i;
