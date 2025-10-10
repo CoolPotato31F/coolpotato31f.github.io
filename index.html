@@ -776,9 +776,12 @@ greet("Alice")`;
                     let params = funcMatch[2].split(",").map(p => p.trim()).filter(p => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(p));
                     params.forEach(p => defined.add("variable:" + p));
                 }
-        
+                
                 let classMatch = line.match(/^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]?/);
-                if (classMatch) defined.add("class:" + classMatch[1]);
+                if (classMatch) {
+                    defined.add("class:" + classMatch[1]);
+                    defined.add("variable:" + classMatch[1]); // ✅ treat class name as a variable too
+                }
         
                 let forMatch = line.match(/^for\s+(.+?)\s+in\s+/);
                 if (forMatch) {
