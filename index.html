@@ -1233,8 +1233,8 @@ greet("Alice")`;
 
                 if (/^\s*$/.test(beforeCursor) && beforeCursor.length > 0) {
                     e.preventDefault();
+                    const tabSize = parseInt(tabSizeSelect.value, 10);
 
-                    const tabSize = 4;
                     const remainder = beforeCursor.length % tabSize || tabSize;
                     const removeCount = Math.min(remainder, beforeCursor.length);
 
@@ -1245,7 +1245,17 @@ greet("Alice")`;
 
                     updateHighlight();
                 }
-
+                const prevChar = value[start - 1];
+                const nextChar = value[start];
+                const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+            
+                if (pairs[prevChar] && nextChar === pairs[prevChar]) {
+                    e.preventDefault();
+                    textarea.value = value.slice(0, start - 1) + value.slice(start + 1);
+                    textarea.selectionStart = textarea.selectionEnd = start - 1;
+                    updateHighlight();
+                    return;
+                }
             }
 
             if (autoPairs && !e.ctrlKey && !e.altKey && !e.metaKey && start === end) {
@@ -1261,6 +1271,46 @@ greet("Alice")`;
                 // Handle closing over existing closing char
                 if (Object.values(pairs).includes(e.key)) {
                     if (value[start] === e.key) {
+                        e.preventDefault();
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                        return;
+                    }
+                }
+            }
+            if (autoPairs && !e.ctrlKey && !e.altKey && !e.metaKey && start === end) {
+                const pairs = {
+                    '(': ')',
+                    '[': ']',
+                    '{': '}',
+                    '"': '"',
+                    "'": "'",
+                };
+            
+                // --- Handle opening pairs ---
+                if (pairs[e.key]) {
+                    e.preventDefault();
+                    const closing = pairs[e.key];
+                    const nextChar = value[start];
+            
+                    // If cursor is before the same closing char, just skip it
+                    if (nextChar === closing) {
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    } else {
+                        // Otherwise insert a full pair and move inside
+                        textarea.value = value.slice(0, start) + e.key + closing + value.slice(end);
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    }
+            
+                    updateHighlight();
+                    return;
+                }
+            
+                // --- Handle closing pairs (skip duplicates) ---
+                if (Object.values(pairs).includes(e.key)) {
+                    const prevChar = value[start - 1];
+                    const nextChar = value[start];
+                    // If next char is the same closing char, move over it instead of adding another
+                    if (nextChar === e.key) {
                         e.preventDefault();
                         textarea.selectionStart = textarea.selectionEnd = start + 1;
                         return;
