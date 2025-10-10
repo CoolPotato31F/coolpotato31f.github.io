@@ -1203,7 +1203,7 @@ greet("Alice")`;
                 const nextChar = value[start];
                 const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
             
-                if (pairs[prevChar] && nextChar === pairs[prevChar]) {
+                if (autoPairs && pairs[prevChar] && nextChar === pairs[prevChar]) {
                     e.preventDefault();
                     textarea.value = value.slice(0, start - 1) + value.slice(start + 1);
                     textarea.selectionStart = textarea.selectionEnd = start - 1;
