@@ -138,7 +138,9 @@
             font-size: 14px;
             line-height: 20px;
             white-space: pre-wrap;
+            /* preserves spaces and line breaks */
             overflow-wrap: break-word;
+            /* wrap anywhere to prevent long lines */
         }
 
         .highlight-layer {
@@ -185,39 +187,47 @@
 
         .keyword {
             color: #4f9aff;
+            /* brighter, more saturated blue */
             font-weight: bold;
         }
 
         .logic {
             color: #d05cff;
+            /* vivid magenta */
             font-weight: bold;
         }
 
         .control {
             color: #ffd43b;
+            /* brighter yellow-gold */
             font-weight: bold;
         }
 
         .function {
             color: #f5e077;
+            /* unchanged */
         }
 
         .string {
             color: #ff6fae;
+            /* hot pink */
         }
 
         .number {
             color: #ffae42;
+            /* orange-gold */
         }
 
         .boolean {
             color: #1ee6ff;
+            /* cyan (brighter than before) */
             font-weight: bold;
         }
 
         .whitespace,
         .variable {
             color: #4ef5c8;
+            /* bright green */
         }
 
         .constant {
@@ -227,19 +237,23 @@
 
         .symbol {
             color: #e6ae35;
+            /* unchanged */
         }
 
         .module {
             color: #d19cff;
+            /* unchanged */
         }
 
         .comment {
             color: #2acb3f;
+            /* brighter green, easier to spot */
             font-style: italic;
         }
 
         .unknown {
             color: #ff5c5c;
+            /* stronger red */
             background-color: rgba(255, 0, 0, 0.15);
         }
 
@@ -649,6 +663,7 @@ greet("Alice")`;
             });
         }
 
+        // Load settings from localStorage
         function loadSettings() {
             const settings = JSON.parse(localStorage.getItem("editorSettings") || "{}");
 
@@ -692,6 +707,8 @@ greet("Alice")`;
         for (let key in colorInputs) {
             colorInputs[key].addEventListener("input", saveSettings);
         }
+
+        // Load settings on page load
         window.addEventListener("load", loadSettings);
 
         function createAnnouncement(message, duration = 5000) {
@@ -737,58 +754,41 @@ greet("Alice")`;
         function findDefinedNames(code) {
             const defined = new Set();
             const lines = code.split("\n");
-        
-            function extractNames(lhs) {
-                const names = [];
-                lhs = lhs.replace(/[()\[\]]/g, " ");
-                lhs.split(",").forEach(part => {
-                    const name = part.trim();
-                    if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
-                        names.push(name);
-                    }
-                });
-                return names;
-            }
-        
+
             for (let line of lines) {
                 line = line.trim();
-        
-                if (/^[a-zA-Z_][a-zA-Z0-9_=\s,()\[\]]*=/.test(line)) {
-                    const parts = line.split("=");
-                    if (parts.length > 1) {
-                        const leftParts = parts.slice(0, -1);
-                        for (const lhs of leftParts) {
-                            const names = extractNames(lhs);
-                            for (const name of names) {
-                                if (name.toUpperCase() === name && name.length > 1) {
-                                    defined.add("constant:" + name);
-                                } else {
-                                    defined.add("variable:" + name);
-                                }
-                            }
-                        }
+
+                // variable assignment
+                let assignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
+                if (assignMatch) {
+                    let name = assignMatch[1];
+                    if (name.toUpperCase() === name && name.length > 1) {
+                        defined.add("constant:" + name);
+                    } else {
+                        defined.add("variable:" + name);
                     }
                 }
-        
+
+                // function def
                 let funcMatch = line.match(/^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/);
                 if (funcMatch) {
                     defined.add("function:" + funcMatch[1]);
-                    let params = funcMatch[2].split(",").map(p => p.trim()).filter(p => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(p));
+                    let params = funcMatch[2].split(",").map(p => p.trim()).filter(p => p.length > 0);
                     params.forEach(p => defined.add("variable:" + p));
                 }
-                
-                let classMatch = line.match(/^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]?/);
-                if (classMatch) {
-                    defined.add("class:" + classMatch[1]);
-                    defined.add("variable:" + classMatch[1]); // ✅ treat class name as a variable too
-                }
-        
-                let forMatch = line.match(/^for\s+(.+?)\s+in\s+/);
+
+                // class def
+                let classMatch = line.match(/^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]/);
+                if (classMatch) defined.add("class:" + classMatch[1]);
+
+                // for loop variables
+                let forMatch = line.match(/^for\s+([a-zA-Z_][a-zA-Z0-9_]*)(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*\s+in\s+/);
                 if (forMatch) {
-                    const names = extractNames(forMatch[1]);
-                    names.forEach(name => defined.add("variable:" + name));
+                    let vars = forMatch[0].slice(4, forMatch[0].indexOf(" in")).split(",").map(v => v.trim());
+                    vars.forEach(v => defined.add("variable:" + v));
                 }
-        
+
+                // imports (only math + time)
                 let importMatch = line.match(/^import\s+(.+)/);
                 if (importMatch) {
                     let parts = importMatch[1].split(",");
@@ -806,8 +806,9 @@ greet("Alice")`;
                         }
                     });
                 }
-        
-                let fromImportMatch = line.match(/^from\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+import\s+(.*)/);
+
+                // from ... import ...
+                let fromImportMatch = line.match(/^from\s+([a-zA-Z_][a-zA-Z0-9_]*?)\s+import\s+(.*)/);
                 if (fromImportMatch) {
                     let lib = fromImportMatch[1];
                     if (MODULES[lib]) {
@@ -828,11 +829,10 @@ greet("Alice")`;
                     }
                 }
             }
-        
             return defined;
         }
 
-
+        // Built-in lists of math + time functions
         const mathFunctions = [
             "acos", "acosh", "asin", "asinh", "atan", "atan2", "atanh", "ceil", "comb", "copysign",
             "cos", "cosh", "degrees", "dist", "erf", "erfc", "exp", "expm1", "fabs", "factorial",
@@ -893,15 +893,17 @@ greet("Alice")`;
                     char === '"' || char === "'" ||
                     ((char === "f" || char === "F") && (code[i + 1] === '"' || code[i + 1] === "'" || code.slice(i + 1, i + 3) === '"""' || code.slice(i + 1, i + 3) === "'''"))
                 ) {
-                    let start = i;
+                    let start = i; // start of the full string token
                     let isFstring = false;
 
+                    // detect f-string
                     if (char === "f" || char === "F") {
                         isFstring = true;
                         i++;
                         char = code[i];
                     }
 
+                    // detect triple quote
                     let quote = char;
                     let triple = false;
                     if (code.slice(i, i + 3) === quote.repeat(3)) {
@@ -914,23 +916,27 @@ greet("Alice")`;
                     let buffer = "";
                     while (i < code.length) {
                         if (code[i] === "\\") {
-                            buffer += code.slice(i, i + 2);
+                            buffer += code.slice(i, i + 2); // keep escape
                             i += 2;
                             continue;
                         }
 
+                        // end of string
                         if ((!triple && code[i] === quote) || (triple && code.slice(i, i + 3) === quote.repeat(3))) {
                             i += triple ? 3 : 1;
                             break;
                         }
 
+                        // f-string embedded code { ... }
                         if (isFstring && code[i] === "{") {
+                            // flush collected text so far
                             if (buffer.length > 0) {
-                                tokens.push(["string", code.slice(start, i)]);
+                                tokens.push(["string", code.slice(start, i)]); // include opening f" and text up to {
                                 buffer = "";
-                                start = i;
+                                start = i; // reset start for next piece
                             }
 
+                            // handle code inside braces
                             let braceDepth = 1;
                             let exprStart = ++i;
                             while (i < code.length && braceDepth > 0) {
@@ -944,7 +950,7 @@ greet("Alice")`;
                             tokens.push(...tokenizePython(expr, definedVars));
                             tokens.push(["symbol", "}"]);
 
-                            start = i;
+                            start = i; // next string piece starts after closing }
                             continue;
                         }
 
@@ -952,6 +958,7 @@ greet("Alice")`;
                         i++;
                     }
 
+                    // push remaining string part (including quotes if no f-string braces)
                     if (start < i) {
                         tokens.push(["string", code.slice(start, i)]);
                     }
@@ -961,25 +968,26 @@ greet("Alice")`;
                 if (/[0-9]/.test(char)) {
                     let start = i;
                     let hasDot = false;
-                
+
                     while (i < code.length) {
                         const c = code[i];
                         if (/[0-9]/.test(c)) {
                             i++;
                         } else if (c === "_" && /[0-9]/.test(code[i + 1])) {
+                            // allow underscores between digits
                             i++;
                         } else if (c === "." && !hasDot && /[0-9]/.test(code[i + 1])) {
+                            // allow one dot for floats
                             hasDot = true;
                             i++;
                         } else {
                             break;
                         }
                     }
-                
+
                     tokens.push(["number", code.slice(start, i)]);
                     continue;
                 }
-
 
                 if (/[a-zA-Z_]/.test(char)) {
                     let start = i;
@@ -990,6 +998,7 @@ greet("Alice")`;
                     if (definedVars.has("module:" + word)) {
                         tokens.push(["module", word]);
 
+                        // Look ahead for dot access
                         if (code[i] === ".") {
                             tokens.push(["symbol", "."]);
                             i++;
@@ -997,7 +1006,7 @@ greet("Alice")`;
                             while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
                             let fnWord = code.slice(startFn, i);
 
-                            let lib = word; 
+                            let lib = word; // alias name
                             if (MODULES[lib]) {
                                 if (MODULES[lib].functions.includes(fnWord)) {
                                     tokens.push(["function", fnWord]);
@@ -1011,12 +1020,15 @@ greet("Alice")`;
                             }
                         }
                     }
+                    // --- direct function import case ---
                     else if (definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     }
+                    // --- direct constant import case ---
                     else if (definedVars.has("constant:" + word)) {
                         tokens.push(["constant", word]);
                     }
+                    // --- wildcard import case (functions + constants) ---
                     else if (
                         (definedVars.has("function:*:math") && mathFunctions.includes(word)) ||
                         (definedVars.has("function:*:time") && timeFunctions.includes(word))
@@ -1027,9 +1039,11 @@ greet("Alice")`;
                     ) {
                         tokens.push(["constant", word]);
                     }
+                    // --- direct function import case ---
                     else if (definedVars.has("function:" + word)) {
                         tokens.push(["function", word]);
                     }
+                    // --- builtins and others ---
                     else if (builtInFunctions.includes(word)) {
                         tokens.push(["function", word]);
                     } else if (keywords.includes(word)) {
@@ -1043,7 +1057,7 @@ greet("Alice")`;
                     } else if (definedVars.has("variable:" + word)) {
                         tokens.push(["variable", word]);
                     } else {
-                        tokens.push(["misc", word]);
+                        tokens.push(["unknown", word]);
                     }
                     continue;
                 }
@@ -1136,6 +1150,7 @@ greet("Alice")`;
                 const value = textarea.value;
 
                 if (start !== end) {
+                    // Multi-line selection → indent/outdent whole lines
                     const lineStart = value.lastIndexOf("\n", start - 1) + 1;
                     const lineEnd = value.indexOf("\n", end);
                     const selectionEnd = lineEnd === -1 ? value.length : lineEnd;
@@ -1143,17 +1158,20 @@ greet("Alice")`;
                     const lines = selectedText.split("\n");
 
                     if (e.shiftKey) {
+                        // Outdent
                         const outdented = lines.map(line => line.startsWith(tabChar) ? line.slice(tabChar.length) : line);
                         textarea.value = value.slice(0, lineStart) + outdented.join("\n") + value.slice(selectionEnd);
                         textarea.selectionStart = start - tabChar.length;
                         textarea.selectionEnd = end - tabChar.length * lines.length;
                     } else {
+                        // Indent
                         const indented = lines.map(line => tabChar + line);
                         textarea.value = value.slice(0, lineStart) + indented.join("\n") + value.slice(selectionEnd);
                         textarea.selectionStart = start + tabChar.length;
                         textarea.selectionEnd = end + tabChar.length * lines.length;
                     }
                 } else {
+                    // Single cursor → insert tab at cursor
                     textarea.value = value.slice(0, start) + tabChar + value.slice(end);
                     textarea.selectionStart = textarea.selectionEnd = start + tabChar.length;
                 }
@@ -1190,8 +1208,8 @@ greet("Alice")`;
 
                 if (/^\s*$/.test(beforeCursor) && beforeCursor.length > 0) {
                     e.preventDefault();
-                    const tabSize = parseInt(tabSizeSelect.value, 10);
 
+                    const tabSize = 4;
                     const remainder = beforeCursor.length % tabSize || tabSize;
                     const removeCount = Math.min(remainder, beforeCursor.length);
 
@@ -1202,17 +1220,7 @@ greet("Alice")`;
 
                     updateHighlight();
                 }
-                const prevChar = value[start - 1];
-                const nextChar = value[start];
-                const pairs = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
-            
-                if (autoPairs && pairs[prevChar] && nextChar === pairs[prevChar]) {
-                    e.preventDefault();
-                    textarea.value = value.slice(0, start - 1) + value.slice(start + 1);
-                    textarea.selectionStart = textarea.selectionEnd = start - 1;
-                    updateHighlight();
-                    return;
-                }
+
             }
 
             if (autoPairs && !e.ctrlKey && !e.altKey && !e.metaKey && start === end) {
@@ -1225,43 +1233,9 @@ greet("Alice")`;
                     return;
                 }
 
+                // Handle closing over existing closing char
                 if (Object.values(pairs).includes(e.key)) {
                     if (value[start] === e.key) {
-                        e.preventDefault();
-                        textarea.selectionStart = textarea.selectionEnd = start + 1;
-                        return;
-                    }
-                }
-            }
-            if (autoPairs && !e.ctrlKey && !e.altKey && !e.metaKey && start === end) {
-                const pairs = {
-                    '(': ')',
-                    '[': ']',
-                    '{': '}',
-                    '"': '"',
-                    "'": "'",
-                };
-            
-                if (pairs[e.key]) {
-                    e.preventDefault();
-                    const closing = pairs[e.key];
-                    const nextChar = value[start];
-            
-                    if (nextChar === closing) {
-                        textarea.selectionStart = textarea.selectionEnd = start + 1;
-                    } else {
-                        textarea.value = value.slice(0, start) + e.key + closing + value.slice(end);
-                        textarea.selectionStart = textarea.selectionEnd = start + 1;
-                    }
-            
-                    updateHighlight();
-                    return;
-                }
-            
-                if (Object.values(pairs).includes(e.key)) {
-                    const prevChar = value[start - 1];
-                    const nextChar = value[start];
-                    if (nextChar === e.key) {
                         e.preventDefault();
                         textarea.selectionStart = textarea.selectionEnd = start + 1;
                         return;
@@ -1314,7 +1288,7 @@ greet("Alice")`;
                     socket.close();
                     socket = null;
                 }
-                outputArea.textContent = "";
+                outputArea.textContent = ""; // clear output
                 outputLayer.innerHTML = ""
                 gutterOutput.innerHTML = ""
                 socket = new WebSocket("wss://sepaled-miller-nonvigilantly.ngrok-free.app/ws/run");
@@ -1355,11 +1329,11 @@ greet("Alice")`;
                             ghostLine.className = "line-number blank";
                             gutterOutput.appendChild(ghostLine);
                         }
-                        const promptText = event.data.slice(9).replace(/\n$/, "");
-                        const line = document.createElement("span");
+                        const promptText = event.data.slice(9).replace(/\n$/, "");; // strip trailing newlines/spaces 
+                        const line = document.createElement("span"); // use span instead of div
                         line.style.display = "inline-flex";
                         line.style.alignItems = "center";
-                        line.style.verticalAlign = "middle";
+                        line.style.verticalAlign = "middle"; // keeps alignment inline
 
                         const spanPrompt = document.createElement("span");
                         spanPrompt.textContent = promptText;
@@ -1376,7 +1350,7 @@ greet("Alice")`;
                         inputEl.style.fontFamily = "monospace";
                         inputEl.style.fontSize = "14px";
                         inputEl.style.height = "20px"
-                        inputEl.style.overflow = "hidden";
+                        inputEl.style.overflow = "hidden"; // ensures no scroll
                         inputEl.style.textOverflow = "clip";
                         inputEl.style.whiteSpace = "nowrap";
                         inputEl.className = "output-input";
@@ -1391,7 +1365,7 @@ greet("Alice")`;
 
                         inputEl.addEventListener("keydown", (e) => {
                             if (e.key === "Enter") {
-                                const userInput = inputEl.value; 
+                                const userInput = inputEl.value; // replace input with static text 
                                 line.removeChild(inputEl);
                                 outputArea.textContent += userInput + "\n";
                                 socket.send("__INPUT__" + userInput);
